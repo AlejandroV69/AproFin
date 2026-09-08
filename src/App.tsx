@@ -66,10 +66,9 @@ export function App() {
         </Suspense>
       </main>
 
-      <footer className="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500 font-mono-num">
-        <div className="max-w-[1600px] mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <span>APRONFIN ERP v2.4 • Agropecuaria Aprocao, C.A. • RIF: J-40812903-1</span>
-          <span>Integración Operativa Profit Plus 2K12 & Libros de Excel .xlsm</span>
+      <footer className="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-500 font-mono-num">
+        <div className="max-w-[1600px] mx-auto px-4 flex justify-center items-center">
+          <span>APRONFIN ERP • Agropecuaria Aprocao, C.A. • RIF: J-40812903-1</span>
         </div>
       </footer>
     </div>

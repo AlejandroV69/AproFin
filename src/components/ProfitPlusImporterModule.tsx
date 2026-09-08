@@ -26,7 +26,7 @@ interface ProfitPlusImporterModuleProps {
 
 export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> = ({ currency, bcvRate }) => {
   const [entries, setEntries] = useState<AccountEntry[]>(SAMPLE_PROFIT_PLUS_ENTRIES);
-  const [fileName, setFileName] = useState<string>('Balance_Comprobacion_Profit_Sep2026.xlsx');
+  const [fileName, setFileName] = useState<string>('Balance_Comprobacion_Sep2026.xlsx');
 
   const totalDebitsVes = entries.reduce((acc, e) => acc + e.debitVes, 0);
 
@@ -49,7 +49,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
           // Process rows if valid sheet format
           const parsed: AccountEntry[] = data.slice(0, 8).map((row: any, idx) => ({
             code: row.Codigo || row['Código'] || `1.1.0${idx + 1}.001`,
-            name: row.Cuenta || row['Nombre'] || `Cuenta Profit ${idx + 1}`,
+            name: row.Cuenta || row['Nombre'] || `Cuenta ${idx + 1}`,
             debitVes: Number(row.Debito || row.Débito || 25000 * (idx + 1)),
             creditVes: Number(row.Credito || row.Crédito || 0),
             netUsd: (Number(row.Debito || 25000) - Number(row.Credito || 0)) / bcvRate,
@@ -81,17 +81,17 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
             <span className="material-symbols-outlined text-[#5C3A21]">upload_file</span>
-            <span>Módulo 1: Gastos Pagados (Importador Balance Profit Plus)</span>
+            <span>Módulo 1: Gastos Pagados (Importador de Balances)</span>
           </h2>
           <p className="text-xs text-slate-500">
-            Importador directo de Balances de Comprobación y Asientos de Egreso desde Profit Plus 2K12.
+            Importador directo de Balances de Comprobación y Asientos de Egreso (.xlsx / .csv / .pdf).
           </p>
         </div>
 
         <div className="flex items-center space-x-2">
           <span className="bg-blue-50 text-blue-700 text-xs font-bold px-3 py-1 rounded-full border border-blue-200 flex items-center space-x-1">
             <span className="material-symbols-outlined text-[16px]">sync</span>
-            <span>Conector Profit Plus 2K12 v4.2</span>
+            <span>Lector Contable PDF & Excel</span>
           </span>
         </div>
       </div>
@@ -100,7 +100,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
       <div className="bg-white rounded-xl border-2 border-dashed border-slate-300 p-6 text-center shadow-xs hover:border-[#8B5A2B] transition-colors relative">
         <input
           type="file"
-          accept=".xlsx,.xls,.csv"
+          accept=".xlsx,.xls,.csv,.pdf"
           onChange={handleFileUpload}
           className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
         />
@@ -109,10 +109,10 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
             <span className="material-symbols-outlined text-[28px]">cloud_upload</span>
           </div>
           <div className="text-sm font-bold text-slate-800">
-            Arrastre aquí su archivo Excel (.xlsx) o CSV exportado de Profit Plus
+            Arrastre aquí su reporte contable en Excel (.xlsx / .csv) o PDF
           </div>
           <p className="text-xs text-slate-500">
-            Admite formatos estándar: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono-num">BALANCE_COMPROBACION.XLSX</code>
+            Admite formatos estándar: <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono-num">BALANCE_COMPROBACION.XLSX / PDF</code>
           </p>
           {fileName && (
             <div className="inline-flex items-center space-x-1.5 bg-emerald-50 text-emerald-800 text-xs font-semibold px-3 py-1 rounded-md border border-emerald-200">
@@ -144,7 +144,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
           </span>
 
           <button
-            onClick={() => alert('Sincronización completa con Supabase y Profit Plus ERP.')}
+            onClick={() => alert('Sincronización completa de reporte contable.')}
             className="h-9 px-4 bg-[#8B5A2B] hover:bg-[#6F4315] text-white font-sans text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1 transition-all"
           >
             <span className="material-symbols-outlined text-[16px]">sync_alt</span>
@@ -156,7 +156,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
       {/* Imported Accounts Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="text-sm font-bold text-slate-900">Previsualización de Mapeo Contable Profit Plus</h3>
+          <h3 className="text-sm font-bold text-slate-900">Previsualización de Mapeo Contable</h3>
           <span className="text-xs text-slate-500 font-mono-num">{entries.length} Cuentas Principales</span>
         </div>
 
@@ -165,7 +165,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
             <thead>
               <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 font-mono-num">
                 <th className="py-2.5 px-3">Código Cuenta</th>
-                <th className="py-2.5 px-3">Nombre de Cuenta Profit Plus</th>
+                <th className="py-2.5 px-3">Nombre de Cuenta Contable</th>
                 <th className="py-2.5 px-3 text-right">Débitos VES</th>
                 <th className="py-2.5 px-3 text-right">Créditos VES</th>
                 <th className="py-2.5 px-3 text-right">Saldo USD (BCV)</th>
@@ -185,7 +185,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
                   </td>
                   <td className="py-2.5 px-3 text-right font-bold text-[#8B5A2B]">{formatMoney(item.netUsd)}</td>
                   <td className="py-2.5 px-3 text-center font-sans">
-                    <span className="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                       {item.status}
                     </span>
                   </td>

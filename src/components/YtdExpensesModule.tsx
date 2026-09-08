@@ -124,44 +124,43 @@ export const YtdExpensesModule: React.FC<YtdExpensesModuleProps> = ({ currency, 
   const grandVariancePct = grandTotalYtdBudget > 0 ? ((grandTotalYtdReal - grandTotalYtdBudget) / grandTotalYtdBudget) * 100 : 0;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
-            <span className="material-symbols-outlined text-[#5C3A21]">table_chart</span>
-            <span>Módulo 4: Estructura de Gastos YTD</span>
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+            Estructura de Gastos YTD
           </h2>
           <p className="text-xs text-slate-500">
-            Matriz Financiera de doble entrada (Enero - Diciembre 2026) vs. Presupuesto Consolidado.
+            Matriz Financiera Consolidada Enero - Diciembre
           </p>
         </div>
 
         {/* View Mode Switcher */}
-        <div className="flex bg-slate-200 p-1 rounded-xl font-semibold text-xs border border-slate-300">
+        <div className="flex bg-slate-100 p-0.5 rounded-lg font-semibold text-xs border border-slate-200">
           <button
             onClick={() => setViewMode('Real')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
-              viewMode === 'Real' ? 'bg-[#5C3A21] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
+            className={`px-3 py-1 rounded-md transition-all ${
+              viewMode === 'Real' ? 'bg-[#5C3A21] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            [Ejecutado Real]
+            Ejecutado Real
           </button>
           <button
             onClick={() => setViewMode('Presupuesto')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
-              viewMode === 'Presupuesto' ? 'bg-[#5C3A21] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
+            className={`px-3 py-1 rounded-md transition-all ${
+              viewMode === 'Presupuesto' ? 'bg-[#5C3A21] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            [Presupuesto Base]
+            Presupuesto
           </button>
           <button
             onClick={() => setViewMode('Variacion')}
-            className={`px-3 py-1.5 rounded-lg transition-all ${
-              viewMode === 'Variacion' ? 'bg-[#5C3A21] text-white shadow-xs' : 'text-slate-700 hover:text-slate-900'
+            className={`px-3 py-1 rounded-md transition-all ${
+              viewMode === 'Variacion' ? 'bg-[#5C3A21] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            [Variación $]
+            Variación $
           </button>
         </div>
       </div>
@@ -227,13 +226,10 @@ export const YtdExpensesModule: React.FC<YtdExpensesModuleProps> = ({ currency, 
 
       {/* Double-entry Matrix Table */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-2">
-            <span className="material-symbols-outlined text-[#5C3A21]">matrix</span>
-            <h3 className="text-sm font-bold text-slate-900">
-              Matriz Financiera YTD — Modo Actual: <span className="text-[#5C3A21] underline">[{viewMode}]</span>
-            </h3>
-          </div>
+        <div className="p-3.5 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <span className="text-xs font-bold text-slate-800">
+            Matriz Financiera YTD
+          </span>
 
           <div className="flex items-center space-x-2">
             <span className="text-xs font-semibold text-slate-500">Categoría:</span>

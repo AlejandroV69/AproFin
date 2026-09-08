@@ -83,13 +83,13 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Simulate Profit Excel Report Parse
+    // Simulate Excel / PDF Report Parse
     const newItems: TradeArticleItem[] = [
       {
         id: `IMP-${Date.now()}-1`,
         docNumber: `PF-${Math.floor(1000 + Math.random() * 9000)}`,
         date: new Date().toISOString().split('T')[0],
-        entityName: 'Importado Profit Plus - AgroSucre C.A.',
+        entityName: 'Importado de Reporte - AgroSucre C.A.',
         articleCode: 'CAC201',
         articleName: 'Cacao Fino Grado 1',
         warehouse: 'ALM-CENTRAL',
@@ -117,7 +117,7 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
             <span>Módulo 2: Compras y Ventas de Cacao</span>
           </h2>
           <p className="text-xs text-slate-500">
-            Ingesta masiva desde Profit Plus (Reportes por Artículo <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">CAC200</code> / <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">CAC201</code>).
+            Ingesta masiva desde Reportes de Sistema (Artículos <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">CAC200</code> / <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">CAC201</code>).
           </p>
         </div>
 
@@ -219,10 +219,10 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
             <span className="material-symbols-outlined text-[24px]">cloud_upload</span>
           </div>
           <h3 className="text-sm font-bold text-slate-800">
-            Ingesta Masiva Profit Plus ({tradeType} por Artículo)
+            Ingesta Masiva de Archivos ({tradeType} por Artículo)
           </h3>
           <p className="text-xs text-slate-500">
-            Arrastra el archivo <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono-num">{tradeType}_Por_Articulo.xlsx</code> exportado de Profit 2K12.
+            Arrastra el reporte <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono-num">{tradeType}_Por_Articulo.xlsx</code> o archivo PDF de soporte.
           </p>
 
           <label className="inline-flex items-center space-x-1.5 bg-[#5C3A21] hover:bg-[#432A18] text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors shadow-xs">
