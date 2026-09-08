@@ -1,73 +1,32 @@
 import React, { useState, useMemo } from 'react';
 import type { CurrencyMode } from './Navbar';
 
-interface TradeRecord {
+interface TradeArticleItem {
   id: string;
+  docNumber: string;
   date: string;
-  producer: string;
-  type: 'Compra' | 'Venta';
-  grossWeight: number;
-  moisturePct: number;
-  impurityPct: number;
-  netWeight: number;
-  pricePerKgUsd: number;
-  totalUsd: number;
-  status: 'Liquidado' | 'En Revisión' | 'Rechazado';
+  entityName: string;
+  articleCode: 'CAC200' | 'CAC201';
+  articleName: string;
+  warehouse: string;
+  weightKg: number;
+  unitCostUsd: number;
+  subtotalUsd: number;
+  week: string;
 }
 
-const INITIAL_TRADES: TradeRecord[] = [
-  {
-    id: 'LOT-2026-089',
-    date: '2026-09-07',
-    producer: 'Hacienda San José - Barlovento',
-    type: 'Compra',
-    grossWeight: 4500,
-    moisturePct: 8.5,
-    impurityPct: 1.5,
-    netWeight: 4410,
-    pricePerKgUsd: 3.42,
-    totalUsd: 15082.20,
-    status: 'Liquidado',
-  },
-  {
-    id: 'LOT-2026-088',
-    date: '2026-09-06',
-    producer: 'Agropecuaria El Porvenir - Choroní',
-    type: 'Compra',
-    grossWeight: 3200,
-    moisturePct: 7.0,
-    impurityPct: 1.0,
-    netWeight: 3200,
-    pricePerKgUsd: 3.40,
-    totalUsd: 10880.00,
-    status: 'Liquidado',
-  },
-  {
-    id: 'LOT-2026-087',
-    date: '2026-09-05',
-    producer: 'Cooperativa Cacaotera Ocumare',
-    type: 'Compra',
-    grossWeight: 6000,
-    moisturePct: 9.8,
-    impurityPct: 2.1,
-    netWeight: 5766,
-    pricePerKgUsd: 3.35,
-    totalUsd: 19316.10,
-    status: 'En Revisión',
-  },
-  {
-    id: 'LOT-2026-086',
-    date: '2026-09-04',
-    producer: 'Chocolates Premium Export (EUA)',
-    type: 'Venta',
-    grossWeight: 12000,
-    moisturePct: 6.8,
-    impurityPct: 0.5,
-    netWeight: 12000,
-    pricePerKgUsd: 4.85,
-    totalUsd: 58200.00,
-    status: 'Liquidado',
-  },
+const INITIAL_COMPRAS: TradeArticleItem[] = [
+  { id: 'REC-001', docNumber: 'FAC-9941', date: '2026-09-07', entityName: 'Hacienda San José - Barlovento', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 12500, unitCostUsd: 3.42, subtotalUsd: 42750.00, week: 'Sem 35' },
+  { id: 'REC-002', docNumber: 'FAC-9942', date: '2026-09-06', entityName: 'Agropecuaria El Porvenir', articleCode: 'CAC200', articleName: 'Cacao Corriente', warehouse: 'ALM-BARLOVENTO', weightKg: 8400, unitCostUsd: 2.95, subtotalUsd: 24780.00, week: 'Sem 35' },
+  { id: 'REC-003', docNumber: 'FAC-9945', date: '2026-09-05', entityName: 'Cooperativa Cacaotera Ocumare', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 15200, unitCostUsd: 3.40, subtotalUsd: 51680.00, week: 'Sem 35' },
+  { id: 'REC-004', docNumber: 'FAC-9930', date: '2026-09-02', entityName: 'Asociación Cacao Sucre', articleCode: 'CAC200', articleName: 'Cacao Corriente', warehouse: 'ALM-[#2]', weightKg: 6100, unitCostUsd: 2.90, subtotalUsd: 17690.00, week: 'Sem 34' },
+  { id: 'REC-005', docNumber: 'FAC-9922', date: '2026-08-28', entityName: 'Finca La Coromoto', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 18000, unitCostUsd: 3.38, subtotalUsd: 60840.00, week: 'Sem 34' },
+];
+
+const INITIAL_VENTAS: TradeArticleItem[] = [
+  { id: 'VEN-001', docNumber: 'EXP-1044', date: '2026-09-06', entityName: 'Nestlé Venezuela, S.A.', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 25000, unitCostUsd: 4.85, subtotalUsd: 121250.00, week: 'Sem 35' },
+  { id: 'VEN-002', docNumber: 'EXP-1045', date: '2026-09-04', entityName: 'Chocolates Chocolart C.A.', articleCode: 'CAC200', articleName: 'Cacao Corriente', warehouse: 'ALM-BARLOVENTO', weightKg: 12000, unitCostUsd: 3.90, subtotalUsd: 46800.00, week: 'Sem 35' },
+  { id: 'VEN-003', docNumber: 'EXP-1038', date: '2026-08-30', entityName: 'Nestlé Venezuela, S.A.', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 30000, unitCostUsd: 4.82, subtotalUsd: 144600.00, week: 'Sem 34' },
 ];
 
 interface CacaoTradeModuleProps {
@@ -76,281 +35,235 @@ interface CacaoTradeModuleProps {
 }
 
 export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bcvRate }) => {
-  const [trades, setTrades] = useState<TradeRecord[]>(INITIAL_TRADES);
-  const [filterStatus, setFilterStatus] = useState<string>('ALL');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [tradeType, setTradeType] = useState<'Compras' | 'Ventas'>('Compras');
+  const [codeFilter, setCodeFilter] = useState<'ALL' | 'CAC200' | 'CAC201'>('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [compras, setCompras] = useState<TradeArticleItem[]>(INITIAL_COMPRAS);
+  const [ventas, setVentas] = useState<TradeArticleItem[]>(INITIAL_VENTAS);
+  const [isDragOver, setIsDragOver] = useState(false);
 
-  // Calculator Form State
-  const [calcProducer, setCalcProducer] = useState('');
-  const [calcGrossWeight, setCalcGrossWeight] = useState<number>(2500);
-  const [calcMoisture, setCalcMoisture] = useState<number>(8.0);
-  const [calcImpurity, setCalcImpurity] = useState<number>(1.2);
-  const [calcPricePerKg, setCalcPricePerKg] = useState<number>(3.42);
+  const activeRecords = tradeType === 'Compras' ? compras : ventas;
 
-  // Dockage Calculation
-  const moisturePenaltyKg = useMemo(() => {
-    const excess = Math.max(0, calcMoisture - 7.0);
-    return Math.round((calcGrossWeight * excess) / 100);
-  }, [calcGrossWeight, calcMoisture]);
-
-  const impurityPenaltyKg = useMemo(() => {
-    const excess = Math.max(0, calcImpurity - 1.0);
-    return Math.round((calcGrossWeight * excess) / 100);
-  }, [calcGrossWeight, calcImpurity]);
-
-  const totalDockageKg = moisturePenaltyKg + impurityPenaltyKg;
-  const netPayableWeight = Math.max(0, calcGrossWeight - totalDockageKg);
-  const totalAmountUsd = netPayableWeight * calcPricePerKg;
-
-  const formatMoney = (amountUsd: number) => {
+  const formatMoney = (usd: number) => {
     if (currency === 'VES') {
-      return `Bs. ${(amountUsd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return `Bs. ${(usd * bcvRate).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
     if (currency === 'EUR') {
-      return `€ ${(amountUsd * 0.92).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      return `€ ${(usd * 0.92).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     }
-    return `$ ${amountUsd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `$ ${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const handleAddTrade = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!calcProducer.trim()) return;
-
-    const newRecord: TradeRecord = {
-      id: `LOT-2026-${String(trades.length + 90).padStart(3, '0')}`,
-      date: new Date().toISOString().split('T')[0],
-      producer: calcProducer,
-      type: 'Compra',
-      grossWeight: calcGrossWeight,
-      moisturePct: calcMoisture,
-      impurityPct: calcImpurity,
-      netWeight: netPayableWeight,
-      pricePerKgUsd: calcPricePerKg,
-      totalUsd: totalAmountUsd,
-      status: 'Liquidado',
-    };
-
-    setTrades([newRecord, ...trades]);
-    setCalcProducer('');
-  };
-
-  const filteredTrades = useMemo(() => {
-    return trades.filter((t) => {
-      const matchesStatus = filterStatus === 'ALL' || t.status === filterStatus;
-      const matchesQuery =
-        t.producer.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.id.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesStatus && matchesQuery;
+  const filteredRecords = useMemo(() => {
+    return activeRecords.filter((rec) => {
+      const matchCode = codeFilter === 'ALL' || rec.articleCode === codeFilter;
+      const matchSearch =
+        rec.entityName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        rec.docNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        rec.warehouse.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchCode && matchSearch;
     });
-  }, [trades, filterStatus, searchQuery]);
+  }, [activeRecords, codeFilter, searchQuery]);
 
-  // Aggregate Metrics
-  const totalRecibidoKg = useMemo(() => trades.reduce((acc, curr) => acc + curr.netWeight, 0), [trades]);
-  const totalDesembolsadoUsd = useMemo(() => trades.reduce((acc, curr) => acc + (curr.type === 'Compra' ? curr.totalUsd : 0), 0), [trades]);
-  const totalVentasUsd = useMemo(() => trades.reduce((acc, curr) => acc + (curr.type === 'Venta' ? curr.totalUsd : 0), 0), [trades]);
+  // Aggregate Computations
+  const totalComprasKg = useMemo(() => compras.reduce((acc, c) => acc + c.weightKg, 0), [compras]);
+  const estimatedComprasKg = 80000; // 80 TM
+  const totalComprasUsd = useMemo(() => compras.reduce((acc, c) => acc + c.subtotalUsd, 0), [compras]);
+  const avgCostCompraUsd = totalComprasKg > 0 ? totalComprasUsd / totalComprasKg : 0;
+
+  const totalVentasKg = useMemo(() => ventas.reduce((acc, v) => acc + v.weightKg, 0), [ventas]);
+  const totalVentasUsd = useMemo(() => ventas.reduce((acc, v) => acc + v.subtotalUsd, 0), [ventas]);
+  const avgPriceVentaUsd = totalVentasKg > 0 ? totalVentasUsd / totalVentasKg : 0;
+
+  // Fee preliminar calculado = Margin Venta vs Compra por Kg * Ventas Kg
+  const marginPerKgUsd = avgPriceVentaUsd - avgCostCompraUsd;
+  const calculatedFeeUsd = marginPerKgUsd * totalVentasKg;
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Simulate Profit Excel Report Parse
+    const newItems: TradeArticleItem[] = [
+      {
+        id: `IMP-${Date.now()}-1`,
+        docNumber: `PF-${Math.floor(1000 + Math.random() * 9000)}`,
+        date: new Date().toISOString().split('T')[0],
+        entityName: 'Importado Profit Plus - AgroSucre C.A.',
+        articleCode: 'CAC201',
+        articleName: 'Cacao Fino Grado 1',
+        warehouse: 'ALM-CENTRAL',
+        weightKg: 14200,
+        unitCostUsd: 3.41,
+        subtotalUsd: 48422.00,
+        week: 'Sem 35',
+      },
+    ];
+
+    if (tradeType === 'Compras') {
+      setCompras([...newItems, ...compras]);
+    } else {
+      setVentas([...newItems, ...ventas]);
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
-            <span className="material-symbols-outlined text-[#8B5A2B]">scale</span>
+            <span className="material-symbols-outlined text-[#5C3A21]">scale</span>
             <span>Módulo 2: Compras y Ventas de Cacao</span>
           </h2>
           <p className="text-xs text-slate-500">
-            Recepción en báscula, liquidador de merma por humedad e impurezas y registro de operaciones.
+            Ingesta masiva desde Profit Plus (Reportes por Artículo <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">CAC200</code> / <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700">CAC201</code>).
           </p>
         </div>
 
-        <div className="flex items-center space-x-2">
-          <span className="text-xs font-semibold text-slate-500">Filtrar Estado:</span>
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#8B5A2B]"
+        {/* Tab Switcher Compras vs Ventas */}
+        <div className="flex bg-slate-200/80 p-1 rounded-xl font-semibold text-xs border border-slate-300/60">
+          <button
+            onClick={() => setTradeType('Compras')}
+            className={`px-4 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+              tradeType === 'Compras'
+                ? 'bg-[#5C3A21] text-white shadow-xs'
+                : 'text-slate-700 hover:text-slate-900'
+            }`}
           >
-            <option value="ALL">Todos los Lotes</option>
-            <option value="Liquidado">Liquidados</option>
-            <option value="En Revisión">En Revisión</option>
-            <option value="Rechazado">Rechazados</option>
-          </select>
+            <span className="material-symbols-outlined text-[16px]">shopping_cart</span>
+            <span>Compras de Grano</span>
+          </button>
+          <button
+            onClick={() => setTradeType('Ventas')}
+            className={`px-4 py-1.5 rounded-lg transition-all flex items-center space-x-1.5 ${
+              tradeType === 'Ventas'
+                ? 'bg-[#5C3A21] text-white shadow-xs'
+                : 'text-slate-700 hover:text-slate-900'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px]">point_of_sale</span>
+            <span>Ventas de Grano</span>
+          </button>
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
+      {/* Computed KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            CACAO RECIBIDO NETO
+            TOTAL KILOS COMPRADOS VS ESTIMADOS
           </span>
           <div className="text-xl font-bold font-mono-num text-slate-900 mt-1">
-            {(totalRecibidoKg / 1000).toFixed(2)} <span className="text-xs font-semibold text-slate-500">TM</span>
+            {(totalComprasKg / 1000).toFixed(2)} <span className="text-xs font-semibold text-slate-500">TM</span>
+          </div>
+          <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-1.5">
+            <div
+              className="bg-emerald-500 h-full rounded-full"
+              style={{ width: `${Math.min(100, (totalComprasKg / estimatedComprasKg) * 100)}%` }}
+            ></div>
           </div>
           <span className="text-[11px] text-slate-500 font-mono-num mt-1 block">
-            {totalRecibidoKg.toLocaleString()} KG Procesados
+            {totalComprasKg.toLocaleString()} KG de {estimatedComprasKg.toLocaleString()} KG Est.
           </span>
         </div>
 
         <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            COMPRAS TOTALES
+            COSTO PROM. PONDERADO COMPRA
           </span>
           <div className="text-xl font-bold font-mono-num text-emerald-700 mt-1">
-            {formatMoney(totalDesembolsadoUsd)}
+            ${avgCostCompraUsd.toFixed(2)} <span className="text-xs font-normal text-slate-500">/ KG</span>
           </div>
-          <span className="text-[11px] text-emerald-600 font-semibold mt-1 block flex items-center space-x-1">
-            <span className="material-symbols-outlined text-[14px]">arrow_downward</span>
-            <span>Liquidación a Productores</span>
+          <span className="text-[11px] text-slate-500 font-mono-num mt-1 block">
+            {formatMoney(avgCostCompraUsd)} / KG en Tasa BCV
           </span>
         </div>
 
         <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            VENTAS / EXPORTACIÓN
+            PRECIO PROM. PONDERADO VENTA
           </span>
-          <div className="text-xl font-bold font-mono-num text-[#8B5A2B] mt-1">
-            {formatMoney(totalVentasUsd)}
+          <div className="text-xl font-bold font-mono-num text-[#5C3A21] mt-1">
+            ${avgPriceVentaUsd.toFixed(2)} <span className="text-xs font-normal text-slate-500">/ KG</span>
           </div>
-          <span className="text-[11px] text-[#8B5A2B] font-semibold mt-1 block flex items-center space-x-1">
-            <span className="material-symbols-outlined text-[14px]">arrow_upward</span>
-            <span>Contratos FOB / CIF</span>
+          <span className="text-[11px] text-[#5C3A21] font-semibold mt-1 block">
+            Contratos Nestlé / Exportación
           </span>
         </div>
 
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            MARGEN PROMEDIO / KG
+        <div className="bg-white rounded-xl p-4 border border-amber-200 bg-amber-50/40 shadow-xs">
+          <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
+            FEE EFECTIVO PRELIMINAR
           </span>
-          <div className="text-xl font-bold font-mono-num text-amber-700 mt-1">
-            {formatMoney(1.43)}
+          <div className="text-xl font-bold font-mono-num text-amber-900 mt-1">
+            {formatMoney(calculatedFeeUsd)}
           </div>
-          <span className="text-[11px] text-amber-600 font-semibold mt-1 block">
-            Spread Compra vs Venta
+          <span className="text-[11px] text-amber-700 font-medium mt-1 block">
+            Margen Spread: +${marginPerKgUsd.toFixed(2)} / KG
           </span>
         </div>
       </div>
 
-      {/* Live Dockage & Moisture Calculator Section */}
-      <section className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center space-x-2">
-            <span className="w-8 h-8 rounded-lg bg-[#8B5A2B]/10 text-[#8B5A2B] flex items-center justify-center">
-              <span className="material-symbols-outlined text-[20px]">calculate</span>
-            </span>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900">
-                Calculadora de Merma por Humedad y Impurezas (Dockage Strip)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Ajuste automático de peso según estándar de recepción (Humedad &lt;= 7.0%, Impurezas &lt;= 1.0%)
-              </p>
-            </div>
+      {/* Mass Ingestion Dropzone */}
+      <div
+        onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+        onDragLeave={() => setIsDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setIsDragOver(false); }}
+        className={`bg-white border-2 border-dashed rounded-xl p-5 text-center transition-all ${
+          isDragOver ? 'border-[#5C3A21] bg-[#5C3A21]/5' : 'border-slate-300 hover:border-slate-400'
+        }`}
+      >
+        <div className="max-w-md mx-auto space-y-2">
+          <div className="w-10 h-10 rounded-full bg-slate-100 text-[#5C3A21] mx-auto flex items-center justify-center">
+            <span className="material-symbols-outlined text-[24px]">cloud_upload</span>
           </div>
-          <span className="bg-amber-50 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">
-            NORMATIVA ICCO
-          </span>
+          <h3 className="text-sm font-bold text-slate-800">
+            Ingesta Masiva Profit Plus ({tradeType} por Artículo)
+          </h3>
+          <p className="text-xs text-slate-500">
+            Arrastra el archivo <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono-num">{tradeType}_Por_Articulo.xlsx</code> exportado de Profit 2K12.
+          </p>
+
+          <label className="inline-flex items-center space-x-1.5 bg-[#5C3A21] hover:bg-[#432A18] text-white text-xs font-semibold px-4 py-2 rounded-lg cursor-pointer transition-colors shadow-xs">
+            <span className="material-symbols-outlined text-[16px]">file_open</span>
+            <span>Seleccionar Reporte Excel / CSV</span>
+            <input type="file" accept=".xlsx,.csv,.xls" onChange={handleFileUpload} className="hidden" />
+          </label>
         </div>
+      </div>
 
-        <form onSubmit={handleAddTrade} className="grid grid-cols-1 md:grid-cols-6 gap-4">
-          <div className="md:col-span-2 space-y-1">
-            <label className="text-xs font-semibold text-slate-700">Proveedor / Productor</label>
-            <input
-              type="text"
-              required
-              placeholder="Ej. Hacienda La Elvira - Carúpano"
-              value={calcProducer}
-              onChange={(e) => setCalcProducer(e.target.value)}
-              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:bg-white focus:ring-2 focus:ring-[#8B5A2B] focus:outline-none"
-            />
-          </div>
+      {/* Dense Audit Data Table */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs space-y-3">
+        {/* Table Toolbar & Quick Filters */}
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
+          <div className="flex items-center space-x-3">
+            <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+              <span className="material-symbols-outlined text-slate-600">table_rows</span>
+              <span>Libro de Ingesta Operativa ({tradeType})</span>
+            </h3>
 
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">Peso Bruto (KG)</label>
-            <input
-              type="number"
-              min="1"
-              value={calcGrossWeight}
-              onChange={(e) => setCalcGrossWeight(Number(e.target.value))}
-              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono-num focus:bg-white focus:ring-2 focus:ring-[#8B5A2B] focus:outline-none"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">Humedad (%)</label>
-            <input
-              type="number"
-              step="0.1"
-              value={calcMoisture}
-              onChange={(e) => setCalcMoisture(Number(e.target.value))}
-              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono-num focus:bg-white focus:ring-2 focus:ring-[#8B5A2B] focus:outline-none"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">Impurezas (%)</label>
-            <input
-              type="number"
-              step="0.1"
-              value={calcImpurity}
-              onChange={(e) => setCalcImpurity(Number(e.target.value))}
-              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono-num focus:bg-white focus:ring-2 focus:ring-[#8B5A2B] focus:outline-none"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-700">Precio / KG ($)</label>
-            <input
-              type="number"
-              step="0.01"
-              value={calcPricePerKg}
-              onChange={(e) => setCalcPricePerKg(Number(e.target.value))}
-              className="w-full h-9 px-3 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono-num focus:bg-white focus:ring-2 focus:ring-[#8B5A2B] focus:outline-none"
-            />
-          </div>
-
-          {/* Calculator Output Strip */}
-          <div className="md:col-span-6 bg-slate-50 rounded-lg p-3 border border-slate-200 flex flex-wrap items-center justify-between gap-3 text-xs font-mono-num">
-            <div className="flex items-center space-x-4">
-              <div>
-                <span className="text-slate-500 block text-[10px] font-sans font-semibold">DESCUENTO HUMEDAD</span>
-                <span className="text-amber-700 font-bold">-{moisturePenaltyKg} KG</span>
-              </div>
-              <span className="text-slate-300">|</span>
-              <div>
-                <span className="text-slate-500 block text-[10px] font-sans font-semibold">DESCUENTO IMPUREZAS</span>
-                <span className="text-amber-700 font-bold">-{impurityPenaltyKg} KG</span>
-              </div>
-              <span className="text-slate-300">|</span>
-              <div>
-                <span className="text-slate-500 block text-[10px] font-sans font-semibold">PESO NETO PAGADERO</span>
-                <span className="text-emerald-700 font-bold text-sm">{netPayableWeight.toLocaleString()} KG</span>
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-3">
-              <div className="text-right">
-                <span className="text-slate-500 block text-[10px] font-sans font-semibold">TOTAL A LIQUIDAR</span>
-                <span className="text-[#8B5A2B] font-bold text-sm">{formatMoney(totalAmountUsd)}</span>
-              </div>
+            {/* Quick Rubro Filters */}
+            <div className="flex bg-white p-0.5 rounded-lg border border-slate-200 text-xs font-semibold">
               <button
-                type="submit"
-                className="h-9 px-4 bg-[#8B5A2B] hover:bg-[#6F4315] text-white font-sans text-xs font-bold rounded-lg shadow-xs flex items-center space-x-1 transition-all"
+                onClick={() => setCodeFilter('ALL')}
+                className={`px-2 py-0.5 rounded ${codeFilter === 'ALL' ? 'bg-[#5C3A21] text-white' : 'text-slate-600'}`}
               >
-                <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                <span>Registrar Lote</span>
+                Todos
+              </button>
+              <button
+                onClick={() => setCodeFilter('CAC200')}
+                className={`px-2 py-0.5 rounded ${codeFilter === 'CAC200' ? 'bg-[#5C3A21] text-white' : 'text-slate-600'}`}
+              >
+                CAC200 (Corriente)
+              </button>
+              <button
+                onClick={() => setCodeFilter('CAC201')}
+                className={`px-2 py-0.5 rounded ${codeFilter === 'CAC201' ? 'bg-[#5C3A21] text-white' : 'text-slate-600'}`}
+              >
+                CAC201 (Fino)
               </button>
             </div>
-          </div>
-        </form>
-      </section>
-
-      {/* Ledger Data Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs space-y-3">
-        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center space-x-2">
-            <span className="material-symbols-outlined text-slate-500">list_alt</span>
-            <h3 className="text-sm font-bold text-slate-900">Libro de Operaciones de Cacao</h3>
           </div>
 
           <div className="relative">
@@ -359,10 +272,10 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
             </span>
             <input
               type="text"
-              placeholder="Buscar por lote o proveedor..."
+              placeholder="Buscar por doc, cliente o almacén..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#8B5A2B] w-64"
+              className="pl-8 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21] w-64"
             />
           </div>
         </div>
@@ -370,65 +283,43 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 font-mono-num">
-                <th className="py-2.5 px-3">Lote ID</th>
-                <th className="py-2.5 px-3">Fecha</th>
-                <th className="py-2.5 px-3">Proveedor / Cliente</th>
-                <th className="py-2.5 px-3">Tipo</th>
-                <th className="py-2.5 px-3 text-right">Peso Bruto</th>
-                <th className="py-2.5 px-3 text-right">Humedad %</th>
-                <th className="py-2.5 px-3 text-right">Peso Neto</th>
-                <th className="py-2.5 px-3 text-right">Precio/KG</th>
-                <th className="py-2.5 px-3 text-right">Total Liquidado</th>
-                <th className="py-2.5 px-3 text-center">Estado</th>
+              <tr className="bg-slate-100/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider border-b border-slate-200 font-mono-num">
+                <th className="py-2.5 px-3">Semana</th>
+                <th className="py-2.5 px-3">Nro. Documento</th>
+                <th className="py-2.5 px-3">Fecha Emisión</th>
+                <th className="py-2.5 px-3">{tradeType === 'Compras' ? 'Proveedor' : 'Cliente'}</th>
+                <th className="py-2.5 px-3">Código / Rubro</th>
+                <th className="py-2.5 px-3">Almacén</th>
+                <th className="py-2.5 px-3 text-right">Cantidad (KG)</th>
+                <th className="py-2.5 px-3 text-right">Costo/Precio Unit.</th>
+                <th className="py-2.5 px-3 text-right">Subtotal</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-xs font-mono-num text-slate-800">
-              {filteredTrades.length === 0 ? (
+              {filteredRecords.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-6 text-slate-400 font-sans">
-                    No se encontraron registros de lotes.
+                  <td colSpan={9} className="text-center py-6 text-slate-400 font-sans">
+                    No hay registros coincidentes para {tradeType}.
                   </td>
                 </tr>
               ) : (
-                filteredTrades.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-2.5 px-3 font-bold text-slate-900">{item.id}</td>
-                    <td className="py-2.5 px-3 text-slate-500">{item.date}</td>
-                    <td className="py-2.5 px-3 font-sans font-medium text-slate-900">{item.producer}</td>
-                    <td className="py-2.5 px-3 font-sans">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${
-                          item.type === 'Compra'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-amber-50 text-amber-800 border border-amber-200'
-                        }`}
-                      >
-                        {item.type}
+                filteredRecords.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/90 transition-colors">
+                    <td className="py-2 px-3 font-semibold text-slate-500">{item.week}</td>
+                    <td className="py-2 px-3 font-bold text-slate-900">{item.docNumber}</td>
+                    <td className="py-2 px-3 text-slate-500">{item.date}</td>
+                    <td className="py-2 px-3 font-sans font-medium text-slate-900">{item.entityName}</td>
+                    <td className="py-2 px-3 font-sans">
+                      <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                        item.articleCode === 'CAC201' ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-slate-100 text-slate-700 border border-slate-200'
+                      }`}>
+                        {item.articleCode} - {item.articleName}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-right text-slate-600">{item.grossWeight.toLocaleString()} KG</td>
-                    <td className="py-2.5 px-3 text-right">
-                      <span className={item.moisturePct > 7.0 ? 'text-amber-600 font-bold' : 'text-slate-700'}>
-                        {item.moisturePct.toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-bold text-slate-900">{item.netWeight.toLocaleString()} KG</td>
-                    <td className="py-2.5 px-3 text-right text-slate-600">${item.pricePerKgUsd.toFixed(2)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-[#8B5A2B]">{formatMoney(item.totalUsd)}</td>
-                    <td className="py-2.5 px-3 text-center font-sans">
-                      <span
-                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                          item.status === 'Liquidado'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : item.status === 'En Revisión'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-red-50 text-red-700 border border-red-200'
-                        }`}
-                      >
-                        {item.status}
-                      </span>
-                    </td>
+                    <td className="py-2 px-3 text-slate-600">{item.warehouse}</td>
+                    <td className="py-2 px-3 text-right font-bold text-slate-900">{item.weightKg.toLocaleString()} KG</td>
+                    <td className="py-2 px-3 text-right text-slate-600">${item.unitCostUsd.toFixed(2)}</td>
+                    <td className="py-2 px-3 text-right font-bold text-[#5C3A21]">{formatMoney(item.subtotalUsd)}</td>
                   </tr>
                 ))
               )}

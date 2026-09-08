@@ -80,11 +80,11 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
-            <span className="material-symbols-outlined text-[#8B5A2B]">upload_file</span>
-            <span>Módulo Importador Balance Profit Plus 2K8 / 2K12</span>
+            <span className="material-symbols-outlined text-[#5C3A21]">upload_file</span>
+            <span>Módulo 1: Gastos Pagados (Importador Balance Profit Plus)</span>
           </h2>
           <p className="text-xs text-slate-500">
-            Sincronización automatizada de estados financieros y balance de comprobación de Profit Plus ERP.
+            Importador directo de Balances de Comprobación y Asientos de Egreso desde Profit Plus 2K12.
           </p>
         </div>
 

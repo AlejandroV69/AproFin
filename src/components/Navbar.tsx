@@ -1,6 +1,6 @@
 import React from 'react';
 
-export type ModuleView = 'trade' | 'monthly' | 'ytd' | 'importer';
+export type ModuleView = 'importer' | 'trade' | 'monthly' | 'ytd';
 export type CurrencyMode = 'USD' | 'VES' | 'EUR';
 
 interface NavbarProps {
@@ -24,103 +24,58 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-      {/* Top Banner: Market Rates & Indicators */}
-      <div className="bg-[#0F172A] text-white text-xs px-4 py-1.5 flex flex-wrap items-center justify-between gap-2 font-mono-num">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span className="font-semibold text-slate-300">TASA BCV OFICIAL:</span>
-            <span className="text-emerald-400 font-bold">Bs. {bcvRate.toFixed(2)} / USD</span>
-          </div>
-          <span className="text-slate-600">|</span>
-          <div className="flex items-center space-x-1.5">
-            <span className="text-slate-300">CACAO FINO GRADO 1 (ICCO):</span>
-            <span className="text-amber-400 font-bold">$3,420.00 / TM</span>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-3 text-slate-400">
-          <span>TLS 1.3 ENCRYPTED</span>
-          <span>•</span>
-          <span className="bg-emerald-950 text-emerald-400 px-2 py-0.5 rounded-full font-sans font-semibold text-[10px] tracking-wide border border-emerald-800">
-            PRODUCCIÓN OK
-          </span>
-        </div>
-      </div>
-
       {/* Main Nav Bar */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16 gap-4">
           {/* Brand & Isotype */}
-          <div className="flex items-center space-x-3 cursor-pointer" onClick={() => setCurrentView('trade')}>
-            <div className="w-10 h-10 rounded-lg bg-[#8B5A2B] text-white flex items-center justify-center font-bold text-xl shadow-xs">
-              <span className="material-symbols-outlined">eco</span>
+          <div className="flex items-center space-x-2.5 cursor-pointer shrink-0" onClick={() => setCurrentView('importer')}>
+            <div className="w-9 h-9 rounded-lg bg-[#5C3A21] text-amber-100 flex items-center justify-center font-bold text-lg shadow-xs">
+              <span className="material-symbols-outlined text-[20px]">eco</span>
             </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="font-bold text-lg text-slate-900 tracking-tight">APRONFIN</span>
-                <span className="bg-[#8B5A2B]/10 text-[#8B5A2B] font-semibold text-[10px] px-1.5 py-0.5 rounded-md border border-[#8B5A2B]/20">
+            <div className="flex flex-col justify-center">
+              <div className="flex items-center space-x-1.5 leading-none">
+                <span className="font-bold text-base text-slate-900 tracking-tight">APRONFIN</span>
+                <span className="bg-[#5C3A21]/10 text-[#5C3A21] font-semibold text-[9px] px-1.5 py-0.5 rounded-md border border-[#5C3A21]/20">
                   v2.4 ERP
                 </span>
               </div>
-              <p className="text-xs text-slate-500 font-medium">Agropecuaria Aprocao, C.A.</p>
+              <p className="text-[11px] text-slate-500 font-medium mt-1 leading-none">Agropecuaria Aprocao, C.A.</p>
             </div>
           </div>
 
-          {/* Module Navigation Tabs */}
-          <nav className="hidden md:flex space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
-            <button
-              onClick={() => setCurrentView('trade')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center space-x-1.5 ${
-                currentView === 'trade'
-                  ? 'bg-white text-[#8B5A2B] shadow-xs border border-slate-200/80 font-bold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">scale</span>
-              <span>1. Compras & Ventas</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('monthly')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center space-x-1.5 ${
-                currentView === 'monthly'
-                  ? 'bg-white text-[#8B5A2B] shadow-xs border border-slate-200/80 font-bold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">payments</span>
-              <span>2. Gastos del Mes</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('ytd')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center space-x-1.5 ${
-                currentView === 'ytd'
-                  ? 'bg-white text-[#8B5A2B] shadow-xs border border-slate-200/80 font-bold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">analytics</span>
-              <span>3. Estructura YTD</span>
-            </button>
-
-            <button
-              onClick={() => setCurrentView('importer')}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center space-x-1.5 ${
-                currentView === 'importer'
-                  ? 'bg-white text-[#8B5A2B] shadow-xs border border-slate-200/80 font-bold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[18px]">upload_file</span>
-              <span>4. Profit Plus ERP</span>
-            </button>
+          {/* Module Navigation Tabs (Strictly 4 Operational Modules) */}
+          <nav className="hidden lg:flex items-center gap-1.5">
+            {([
+              { key: 'importer', icon: 'upload_file', label: '1. Gastos Pagados (Profit Plus)' },
+              { key: 'trade', icon: 'scale', label: '2. Compras y Ventas Cacao' },
+              { key: 'monthly', icon: 'calendar_view_week', label: '3. Gastado en el Mes' },
+              { key: 'ytd', icon: 'table_chart', label: '4. Estructura Gastos YTD' },
+            ] as { key: ModuleView; icon: string; label: string }[]).map(({ key, icon, label }) => (
+              <button
+                key={key}
+                onClick={() => setCurrentView(key)}
+                className={`px-3 py-2 text-xs font-semibold rounded-lg transition-all flex items-center space-x-1.5 ${
+                  currentView === key
+                    ? 'bg-[#5C3A21] text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[17px]">{icon}</span>
+                <span>{label}</span>
+              </button>
+            ))}
           </nav>
 
-          {/* Right Controls: Currency Switcher & Profile */}
+          {/* Right Controls: BCV Indicator, Currency Switcher & Profile */}
           <div className="flex items-center space-x-3">
-            {/* Currency Pill */}
+            {/* Global BCV Rate Badge */}
+            <div className="hidden sm:flex items-center space-x-1.5 bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs font-mono-num">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="font-bold text-[10px] text-emerald-900 uppercase">BCV:</span>
+              <span className="font-bold text-emerald-700">Bs. {bcvRate.toFixed(2)}</span>
+            </div>
+
+            {/* Currency Selector */}
             <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 text-xs font-mono-num font-semibold">
               {(['USD', 'VES', 'EUR'] as CurrencyMode[]).map((c) => (
                 <button
@@ -128,7 +83,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   onClick={() => setCurrency(c)}
                   className={`px-2 py-1 rounded-md transition-all ${
                     currency === c
-                      ? 'bg-[#8B5A2B] text-white shadow-xs'
+                      ? 'bg-[#5C3A21] text-white shadow-xs'
                       : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
@@ -155,39 +110,23 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Mobile Navigation Tabs */}
-        <div className="md:hidden flex overflow-x-auto pb-2 space-x-1 border-t border-slate-100 pt-2">
-          <button
-            onClick={() => setCurrentView('trade')}
-            className={`px-3 py-1 text-xs font-semibold rounded-md whitespace-nowrap ${
-              currentView === 'trade' ? 'bg-[#8B5A2B] text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            Compras & Ventas
-          </button>
-          <button
-            onClick={() => setCurrentView('monthly')}
-            className={`px-3 py-1 text-xs font-semibold rounded-md whitespace-nowrap ${
-              currentView === 'monthly' ? 'bg-[#8B5A2B] text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            Gastos Mes
-          </button>
-          <button
-            onClick={() => setCurrentView('ytd')}
-            className={`px-3 py-1 text-xs font-semibold rounded-md whitespace-nowrap ${
-              currentView === 'ytd' ? 'bg-[#8B5A2B] text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            Estructura YTD
-          </button>
-          <button
-            onClick={() => setCurrentView('importer')}
-            className={`px-3 py-1 text-xs font-semibold rounded-md whitespace-nowrap ${
-              currentView === 'importer' ? 'bg-[#8B5A2B] text-white' : 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            Profit Plus
-          </button>
+        <div className="lg:hidden flex overflow-x-auto pb-2 space-x-1 border-t border-slate-100 pt-2">
+          {([
+            { key: 'importer', label: '1. Profit Plus' },
+            { key: 'trade', label: '2. Compras/Ventas' },
+            { key: 'monthly', label: '3. Gastado Mes' },
+            { key: 'ytd', label: '4. Matriz YTD' },
+          ] as { key: ModuleView; label: string }[]).map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setCurrentView(key)}
+              className={`px-2.5 py-1 text-xs font-semibold rounded-md whitespace-nowrap ${
+                currentView === key ? 'bg-[#5C3A21] text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
       </div>
     </header>
