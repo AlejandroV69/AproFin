@@ -1,33 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { CurrencyMode } from './Navbar';
-
-interface TradeArticleItem {
-  id: string;
-  docNumber: string;
-  date: string;
-  entityName: string;
-  articleCode: 'CAC200' | 'CAC201';
-  articleName: string;
-  warehouse: string;
-  weightKg: number;
-  unitCostUsd: number;
-  subtotalUsd: number;
-  week: string;
-}
-
-const INITIAL_COMPRAS: TradeArticleItem[] = [
-  { id: 'REC-001', docNumber: 'FAC-9941', date: '2026-09-07', entityName: 'Hacienda San José - Barlovento', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 12500, unitCostUsd: 3.42, subtotalUsd: 42750.00, week: 'Sem 35' },
-  { id: 'REC-002', docNumber: 'FAC-9942', date: '2026-09-06', entityName: 'Agropecuaria El Porvenir', articleCode: 'CAC200', articleName: 'Cacao Corriente', warehouse: 'ALM-BARLOVENTO', weightKg: 8400, unitCostUsd: 2.95, subtotalUsd: 24780.00, week: 'Sem 35' },
-  { id: 'REC-003', docNumber: 'FAC-9945', date: '2026-09-05', entityName: 'Cooperativa Cacaotera Ocumare', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 15200, unitCostUsd: 3.40, subtotalUsd: 51680.00, week: 'Sem 35' },
-  { id: 'REC-004', docNumber: 'FAC-9930', date: '2026-09-02', entityName: 'Asociación Cacao Sucre', articleCode: 'CAC200', articleName: 'Cacao Corriente', warehouse: 'ALM-[#2]', weightKg: 6100, unitCostUsd: 2.90, subtotalUsd: 17690.00, week: 'Sem 34' },
-  { id: 'REC-005', docNumber: 'FAC-9922', date: '2026-08-28', entityName: 'Finca La Coromoto', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 18000, unitCostUsd: 3.38, subtotalUsd: 60840.00, week: 'Sem 34' },
-];
-
-const INITIAL_VENTAS: TradeArticleItem[] = [
-  { id: 'VEN-001', docNumber: 'EXP-1044', date: '2026-09-06', entityName: 'Nestlé Venezuela, S.A.', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 25000, unitCostUsd: 4.85, subtotalUsd: 121250.00, week: 'Sem 35' },
-  { id: 'VEN-002', docNumber: 'EXP-1045', date: '2026-09-04', entityName: 'Chocolates Chocolart C.A.', articleCode: 'CAC200', articleName: 'Cacao Corriente', warehouse: 'ALM-BARLOVENTO', weightKg: 12000, unitCostUsd: 3.90, subtotalUsd: 46800.00, week: 'Sem 35' },
-  { id: 'VEN-003', docNumber: 'EXP-1038', date: '2026-08-30', entityName: 'Nestlé Venezuela, S.A.', articleCode: 'CAC201', articleName: 'Cacao Fino Grado 1', warehouse: 'ALM-CENTRAL', weightKg: 30000, unitCostUsd: 4.82, subtotalUsd: 144600.00, week: 'Sem 34' },
-];
+import { getPurchases, getSales } from '../lib/services/cacaoService';
+import type { CacaoPurchase, CacaoSale } from '../lib/types';
 
 interface CacaoTradeModuleProps {
   currency: CurrencyMode;
@@ -38,11 +12,61 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
   const [tradeType, setTradeType] = useState<'Compras' | 'Ventas'>('Compras');
   const [codeFilter, setCodeFilter] = useState<'ALL' | 'CAC200' | 'CAC201'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [compras, setCompras] = useState<TradeArticleItem[]>(INITIAL_COMPRAS);
-  const [ventas, setVentas] = useState<TradeArticleItem[]>(INITIAL_VENTAS);
+  const [compras, setCompras] = useState<CacaoPurchase[]>([]);
+  const [ventas, setVentas] = useState<CacaoSale[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const activeRecords = tradeType === 'Compras' ? compras : ventas;
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [purchasesData, salesData] = await Promise.all([
+        getPurchases({ year: new Date().getFullYear() }),
+        getSales({ year: new Date().getFullYear() }),
+      ]);
+      setCompras(purchasesData);
+      setVentas(salesData);
+    } catch (err: any) {
+      setSaveError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Adapter: unify field names for display
+  const activeRecords = useMemo(() => {
+    if (tradeType === 'Compras') {
+      return compras.map(c => ({
+        id: c.id,
+        docNumber: c.doc_number,
+        date: c.issue_date,
+        entityName: c.supplier_code,
+        articleCode: (c.article_code ?? 'CAC200') as 'CAC200' | 'CAC201',
+        articleName: c.article_code === 'CAC201' ? 'Cacao Fino Grado 1' : 'Cacao Corriente',
+        warehouse: c.warehouse_code,
+        weightKg: c.quantity_kg,
+        unitCostUsd: c.unit_cost_usd ?? (c.unit_cost_bs / bcvRate),
+        subtotalUsd: c.net_amount_usd ?? (c.net_amount_bs / bcvRate),
+        week: `Sem ${c.week_number}`,
+      }));
+    }
+    return ventas.map(v => ({
+      id: v.id,
+      docNumber: v.doc_number,
+      date: v.issue_date,
+      entityName: v.customer_code,
+      articleCode: (v.article_code ?? 'CAC200') as 'CAC200' | 'CAC201',
+      articleName: v.article_code === 'CAC201' ? 'Cacao Fino Grado 1' : 'Cacao Corriente',
+      warehouse: v.warehouse_code,
+      weightKg: v.quantity_kg,
+      unitCostUsd: v.unit_price_usd ?? (v.unit_price_bs / bcvRate),
+      subtotalUsd: v.net_amount_usd ?? (v.net_amount_bs / bcvRate),
+      week: `Sem ${v.week_number}`,
+    }));
+  }, [tradeType, compras, ventas, bcvRate]);
 
   const formatMoney = (usd: number) => {
     if (currency === 'VES') {
@@ -66,45 +90,22 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
   }, [activeRecords, codeFilter, searchQuery]);
 
   // Aggregate Computations
-  const totalComprasKg = useMemo(() => compras.reduce((acc, c) => acc + c.weightKg, 0), [compras]);
-  const estimatedComprasKg = 80000; // 80 TM
-  const totalComprasUsd = useMemo(() => compras.reduce((acc, c) => acc + c.subtotalUsd, 0), [compras]);
+  const totalComprasKg = useMemo(() => compras.reduce((acc, c) => acc + c.quantity_kg, 0), [compras]);
+  const estimatedComprasKg = 80000;
+  const totalComprasUsd = useMemo(() => compras.reduce((acc, c) => acc + (c.net_amount_usd ?? c.net_amount_bs / bcvRate), 0), [compras, bcvRate]);
   const avgCostCompraUsd = totalComprasKg > 0 ? totalComprasUsd / totalComprasKg : 0;
 
-  const totalVentasKg = useMemo(() => ventas.reduce((acc, v) => acc + v.weightKg, 0), [ventas]);
-  const totalVentasUsd = useMemo(() => ventas.reduce((acc, v) => acc + v.subtotalUsd, 0), [ventas]);
+  const totalVentasKg = useMemo(() => ventas.reduce((acc, v) => acc + v.quantity_kg, 0), [ventas]);
+  const totalVentasUsd = useMemo(() => ventas.reduce((acc, v) => acc + (v.net_amount_usd ?? v.net_amount_bs / bcvRate), 0), [ventas, bcvRate]);
   const avgPriceVentaUsd = totalVentasKg > 0 ? totalVentasUsd / totalVentasKg : 0;
 
-  // Fee preliminar calculado = Margin Venta vs Compra por Kg * Ventas Kg
   const marginPerKgUsd = avgPriceVentaUsd - avgCostCompraUsd;
   const calculatedFeeUsd = marginPerKgUsd * totalVentasKg;
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Simulate Excel / PDF Report Parse
-    const newItems: TradeArticleItem[] = [
-      {
-        id: `IMP-${Date.now()}-1`,
-        docNumber: `PF-${Math.floor(1000 + Math.random() * 9000)}`,
-        date: new Date().toISOString().split('T')[0],
-        entityName: 'Importado de Reporte - AgroSucre C.A.',
-        articleCode: 'CAC201',
-        articleName: 'Cacao Fino Grado 1',
-        warehouse: 'ALM-CENTRAL',
-        weightKg: 14200,
-        unitCostUsd: 3.41,
-        subtotalUsd: 48422.00,
-        week: 'Sem 35',
-      },
-    ];
-
-    if (tradeType === 'Compras') {
-      setCompras([...newItems, ...compras]);
-    } else {
-      setVentas([...newItems, ...ventas]);
-    }
+  const handleFileUpload = (_e: React.ChangeEvent<HTMLInputElement>) => {
+    // Import logic handled by ProfitPlusImporterModule
+    // Here just refresh data after potential import
+    loadData();
   };
 
   return (

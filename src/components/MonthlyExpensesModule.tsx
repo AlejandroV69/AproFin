@@ -1,39 +1,42 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import type { CurrencyMode } from './Navbar';
-
-interface WeeklyCostAccount {
-  code: string;
-  description: string;
-  group: 'Costos Variables' | 'Costos Fijos y Planta';
-  sem1: number;
-  sem2: number;
-  sem3: number;
-  sem4: number;
-  sem5: number;
-}
-
-const MONTHLY_WEEKLY_COSTS: WeeklyCostAccount[] = [
-  // Grupo 1: Costos Variables
-  { code: '6.1.01.01', description: 'Fletes de Cacao (Barlovento -> Planta)', group: 'Costos Variables', sem1: 1450, sem2: 1620, sem3: 1800, sem4: 1550, sem5: 980 },
-  { code: '6.1.01.02', description: 'Fletes en General & Traslados Especiales', group: 'Costos Variables', sem1: 850, sem2: 920, sem3: 1100, sem4: 780, sem5: 450 },
-  { code: '6.1.01.03', description: 'Traslado & Manejo Sacos Vacíos', group: 'Costos Variables', sem1: 320, sem2: 400, sem3: 450, sem4: 380, sem5: 210 },
-  { code: '6.1.01.04', description: 'Control de Calidad, Análisis Humedad & Prueba Corte', group: 'Costos Variables', sem1: 540, sem2: 600, sem3: 580, sem4: 620, sem5: 390 },
-
-  // Grupo 2: Costos Fijos y de Planta
-  { code: '6.1.02.01', description: 'Mano de Obra Directa (Fermentación & Patio)', group: 'Costos Fijos y Planta', sem1: 2800, sem2: 2800, sem3: 2950, sem4: 2800, sem5: 1400 },
-  { code: '6.1.02.02', description: 'Operación Secadores Térmicos & Túneles', group: 'Costos Fijos y Planta', sem1: 1250, sem2: 1380, sem3: 1420, sem4: 1300, sem5: 720 },
-  { code: '6.1.02.03', description: 'Servicios de Planta, Gasoil & Combustible', group: 'Costos Fijos y Planta', sem1: 920, sem2: 1050, sem3: 1120, sem4: 980, sem5: 550 },
-  { code: '6.1.02.04', description: 'Mantenimiento Preventivo & Repuestos Planta', group: 'Costos Fijos y Planta', sem1: 620, sem2: 740, sem3: 480, sem4: 890, sem5: 310 },
-];
+import { getWeeklyExpenses } from '../lib/services/expensesService';
+import type { WeeklyExpense } from '../lib/types';
 
 interface MonthlyExpensesModuleProps {
   currency: CurrencyMode;
   bcvRate: number;
 }
 
+const CURRENT_YEAR = new Date().getFullYear();
+const CURRENT_MONTH = new Date().getMonth() + 1;
+const MONTH_NAMES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
 export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ currency, bcvRate }) => {
-  const [activeWeek, setActiveWeek] = useState<number>(3); // Sem 3 active week
-  const [selectedMonth, setSelectedMonth] = useState<string>('Septiembre 2026');
+  const [activeWeek, setActiveWeek] = useState<number>(3);
+  const [selectedYear, setSelectedYear] = useState<number>(CURRENT_YEAR);
+  const [selectedMonth, setSelectedMonth] = useState<number>(CURRENT_MONTH);
+  const [data, setData] = useState<WeeklyExpense[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setLoadError(null);
+    try {
+      const rows = await getWeeklyExpenses(selectedYear, selectedMonth);
+      setData(rows);
+    } catch (err: any) {
+      setLoadError(err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedYear, selectedMonth]);
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const formatMoney = (usd: number) => {
     if (currency === 'VES') {
@@ -45,18 +48,16 @@ export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ cu
     return `$ ${usd.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const variablesList = useMemo(() => MONTHLY_WEEKLY_COSTS.filter(c => c.group === 'Costos Variables'), []);
-  const fijosList = useMemo(() => MONTHLY_WEEKLY_COSTS.filter(c => c.group === 'Costos Fijos y Planta'), []);
+  const variablesList = useMemo(() => data.filter(r => r.expense_category === 'COSTO_VARIABLE'), [data]);
+  const fijosList = useMemo(() => data.filter(r => r.expense_category === 'COSTO_FIJO'), [data]);
 
-  // Compute totals for group
-  const calcGroupTotals = (items: WeeklyCostAccount[]) => {
-    const sem1 = items.reduce((a, b) => a + b.sem1, 0);
-    const sem2 = items.reduce((a, b) => a + b.sem2, 0);
-    const sem3 = items.reduce((a, b) => a + b.sem3, 0);
-    const sem4 = items.reduce((a, b) => a + b.sem4, 0);
-    const sem5 = items.reduce((a, b) => a + b.sem5, 0);
-    const total = sem1 + sem2 + sem3 + sem4 + sem5;
-    return { sem1, sem2, sem3, sem4, sem5, total };
+  const calcGroupTotals = (items: WeeklyExpense[]) => {
+    const sem1 = items.reduce((a, b) => a + b.week_1, 0);
+    const sem2 = items.reduce((a, b) => a + b.week_2, 0);
+    const sem3 = items.reduce((a, b) => a + b.week_3, 0);
+    const sem4 = items.reduce((a, b) => a + b.week_4, 0);
+    const sem5 = items.reduce((a, b) => a + b.week_5, 0);
+    return { sem1, sem2, sem3, sem4, sem5, total: sem1 + sem2 + sem3 + sem4 + sem5 };
   };
 
   const varTotals = calcGroupTotals(variablesList);
@@ -70,6 +71,38 @@ export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ cu
     total: varTotals.total + fijosTotals.total,
   };
 
+  const activeWeekValue = [grandTotal.sem1, grandTotal.sem2, grandTotal.sem3, grandTotal.sem4, grandTotal.sem5][activeWeek - 1];
+
+  const weekThClass = (w: number) =>
+    `py-3 px-3 text-right w-32 ${activeWeek === w ? 'bg-amber-100/80 text-amber-900 font-extrabold border-x border-amber-300' : ''}`;
+
+  const weekTdClass = (w: number) =>
+    `py-2.5 px-3 text-right ${activeWeek === w ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`;
+
+  const renderRows = (items: WeeklyExpense[]) =>
+    items.map((item) => (
+      <tr key={item.id} className="hover:bg-slate-50 transition-colors">
+        <td className="py-2.5 px-3 font-semibold text-slate-600">{item.account_code ?? '—'}</td>
+        <td className="py-2.5 px-3 font-sans font-medium text-slate-900">{item.expense_category}</td>
+        <td className={weekTdClass(1)}>{formatMoney(item.week_1)}</td>
+        <td className={weekTdClass(2)}>{formatMoney(item.week_2)}</td>
+        <td className={weekTdClass(3)}>{formatMoney(item.week_3)}</td>
+        <td className={weekTdClass(4)}>{formatMoney(item.week_4)}</td>
+        <td className={weekTdClass(5)}>{formatMoney(item.week_5)}</td>
+        <td className="py-2.5 px-3 text-right font-bold text-[#5C3A21] bg-slate-50">{formatMoney(item.total_month)}</td>
+      </tr>
+    ));
+
+  const renderSubtotal = (totals: ReturnType<typeof calcGroupTotals>, label: string) => (
+    <tr className="bg-slate-100 font-bold text-slate-900 text-xs border-t-2 border-slate-300">
+      <td colSpan={2} className="py-2 px-3 font-sans">{label}</td>
+      {[totals.sem1, totals.sem2, totals.sem3, totals.sem4, totals.sem5].map((v, i) => (
+        <td key={i} className={`py-2 px-3 text-right ${activeWeek === i + 1 ? 'bg-amber-100/60' : ''}`}>{formatMoney(v)}</td>
+      ))}
+      <td className="py-2 px-3 text-right font-bold text-[#5C3A21] bg-slate-200/50">{formatMoney(totals.total)}</td>
+    </tr>
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -79,21 +112,28 @@ export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ cu
             <span className="material-symbols-outlined text-[#5C3A21]">calendar_view_week</span>
             <span>Módulo 3: Gastado Dentro del Mes</span>
           </h2>
-          <p className="text-xs text-slate-500">
-            Matriz Semanal de Costos Devengados y Ejecución Presupuestaria Operativa.
-          </p>
+          <p className="text-xs text-slate-500">Matriz Semanal de Costos Devengados y Ejecución Presupuestaria Operativa.</p>
         </div>
 
-        {/* Month Selector & Active Week Controls */}
         <div className="flex items-center space-x-3">
           <select
             value={selectedMonth}
-            onChange={(e) => setSelectedMonth(e.target.value)}
+            onChange={(e) => setSelectedMonth(Number(e.target.value))}
             className="text-xs bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
           >
-            <option value="Septiembre 2026">Septiembre 2026</option>
-            <option value="Agosto 2026">Agosto 2026</option>
-            <option value="Julio 2026">Julio 2026</option>
+            {MONTH_NAMES.map((name, idx) => (
+              <option key={idx + 1} value={idx + 1}>{name} {selectedYear}</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="text-xs bg-white border border-slate-300 rounded-lg px-3 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
+          >
+            {[CURRENT_YEAR - 1, CURRENT_YEAR, CURRENT_YEAR + 1].map(y => (
+              <option key={y} value={y}>{y}</option>
+            ))}
           </select>
 
           <div className="flex items-center space-x-1 bg-slate-200 p-1 rounded-lg text-xs font-semibold">
@@ -102,11 +142,7 @@ export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ cu
               <button
                 key={w}
                 onClick={() => setActiveWeek(w)}
-                className={`px-2.5 py-1 rounded transition-all font-mono-num ${
-                  activeWeek === w
-                    ? 'bg-[#5C3A21] text-white shadow-xs'
-                    : 'text-slate-700 hover:bg-slate-300'
-                }`}
+                className={`px-2.5 py-1 rounded transition-all font-mono-num ${activeWeek === w ? 'bg-[#5C3A21] text-white shadow-xs' : 'text-slate-700 hover:bg-slate-300'}`}
               >
                 Sem {w}
               </button>
@@ -115,148 +151,107 @@ export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ cu
         </div>
       </div>
 
-      {/* Summary KPI Highlights */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            TOTAL COSTOS VARIABLES (MES)
-          </span>
-          <div className="text-xl font-bold font-mono-num text-slate-900 mt-1">
-            {formatMoney(varTotals.total)}
+      {/* Error */}
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 text-xs text-red-700 flex items-center gap-2">
+          <span className="material-symbols-outlined text-[16px]">error</span>
+          {loadError}
+        </div>
+      )}
+
+      {/* Loading skeleton */}
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded-xl p-4 border border-slate-200 animate-pulse">
+              <div className="h-3 bg-slate-200 rounded w-2/3 mb-3" />
+              <div className="h-6 bg-slate-200 rounded w-1/2 mb-2" />
+              <div className="h-2 bg-slate-100 rounded w-full" />
+            </div>
+          ))}
+        </div>
+      ) : data.length === 0 ? (
+        /* Empty state */
+        <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-400">
+          <span className="material-symbols-outlined text-[32px] block mb-2">inbox</span>
+          No hay gastos registrados para {MONTH_NAMES[selectedMonth - 1]} {selectedYear}.
+          <br />
+          <span className="text-xs">Importa datos desde el Módulo 1.</span>
+        </div>
+      ) : (
+        <>
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">TOTAL COSTOS VARIABLES (MES)</span>
+              <div className="text-xl font-bold font-mono-num text-slate-900 mt-1">{formatMoney(varTotals.total)}</div>
+              <span className="text-[11px] text-slate-500 font-mono-num mt-1 block">Fletes, Sacos &amp; Análisis de Calidad</span>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">TOTAL COSTOS FIJOS Y PLANTA</span>
+              <div className="text-xl font-bold font-mono-num text-[#5C3A21] mt-1">{formatMoney(fijosTotals.total)}</div>
+              <span className="text-[11px] text-slate-500 font-mono-num mt-1 block">Nómina, Secaderos &amp; Combustibles</span>
+            </div>
+            <div className="bg-white rounded-xl p-4 border border-emerald-200 bg-emerald-50/40 shadow-xs">
+              <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider block">TOTAL GASTADO MES EN CURSO</span>
+              <div className="text-xl font-bold font-mono-num text-emerald-700 mt-1">{formatMoney(grandTotal.total)}</div>
+              <span className="text-[11px] text-emerald-600 font-medium mt-1 block">
+                Ejecutado Sem {activeWeek} Activa: {formatMoney(activeWeekValue)}
+              </span>
+            </div>
           </div>
-          <span className="text-[11px] text-slate-500 font-mono-num mt-1 block">
-            Fletes, Sacos & Análisis de Calidad
-          </span>
-        </div>
 
-        <div className="bg-white rounded-xl p-4 border border-slate-200 shadow-xs">
-          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-            TOTAL COSTOS FIJOS Y PLANTA
-          </span>
-          <div className="text-xl font-bold font-mono-num text-[#5C3A21] mt-1">
-            {formatMoney(fijosTotals.total)}
-          </div>
-          <span className="text-[11px] text-slate-500 font-mono-num mt-1 block">
-            Nómina, Secaderos & Combustibles
-          </span>
-        </div>
-
-        <div className="bg-white rounded-xl p-4 border border-emerald-200 bg-emerald-50/40 shadow-xs">
-          <span className="text-[10px] font-bold text-emerald-900 uppercase tracking-wider block">
-            TOTAL GASTADO MES EN CURSO
-          </span>
-          <div className="text-xl font-bold font-mono-num text-emerald-700 mt-1">
-            {formatMoney(grandTotal.total)}
-          </div>
-          <span className="text-[11px] text-emerald-600 font-medium mt-1 block">
-            Ejecutado Sem 3 Activa: {formatMoney(grandTotal.sem3)}
-          </span>
-        </div>
-      </div>
-
-      {/* Dense Spreadsheet Grid */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
-            <span className="material-symbols-outlined text-[#5C3A21]">grid_on</span>
-            <span>Matriz Semanal de Costos Devengados ({selectedMonth})</span>
-          </h3>
-          <span className="text-xs text-slate-500 font-mono-num">Todas las cifras en {currency}</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse font-mono-num text-xs">
-            <thead>
-              <tr className="bg-slate-100/90 text-[11px] font-bold text-slate-700 uppercase border-b border-slate-300">
-                <th className="py-3 px-3 w-28">Código Cuenta</th>
-                <th className="py-3 px-3 font-sans">Descripción de la Cuenta</th>
-                <th className={`py-3 px-3 text-right w-32 ${activeWeek === 1 ? 'bg-amber-100/80 text-amber-900 font-extrabold border-x border-amber-300' : ''}`}>Sem 1</th>
-                <th className={`py-3 px-3 text-right w-32 ${activeWeek === 2 ? 'bg-amber-100/80 text-amber-900 font-extrabold border-x border-amber-300' : ''}`}>Sem 2</th>
-                <th className={`py-3 px-3 text-right w-32 ${activeWeek === 3 ? 'bg-amber-100/80 text-amber-900 font-extrabold border-x border-amber-300' : ''}`}>Sem 3 (Activa)</th>
-                <th className={`py-3 px-3 text-right w-32 ${activeWeek === 4 ? 'bg-amber-100/80 text-amber-900 font-extrabold border-x border-amber-300' : ''}`}>Sem 4</th>
-                <th className={`py-3 px-3 text-right w-32 ${activeWeek === 5 ? 'bg-amber-100/80 text-amber-900 font-extrabold border-x border-amber-300' : ''}`}>Sem 5</th>
-                <th className="py-3 px-3 text-right w-36 font-bold bg-slate-200/60 text-slate-900">Total Acum. Mes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {/* GRUPO 1 HEADER */}
-              <tr className="bg-slate-50 font-sans font-bold text-slate-800 text-[11px]">
-                <td colSpan={8} className="py-2 px-3 bg-slate-100/60">
-                  GRUPO 1: COSTOS VARIABLES OPERATIVOS
-                </td>
-              </tr>
-              {variablesList.map((item) => {
-                const totalRow = item.sem1 + item.sem2 + item.sem3 + item.sem4 + item.sem5;
-                return (
-                  <tr key={item.code} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-slate-600">{item.code}</td>
-                    <td className="py-2.5 px-3 font-sans font-medium text-slate-900">{item.description}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 1 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem1)}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 2 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem2)}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 3 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem3)}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 4 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem4)}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 5 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem5)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-[#5C3A21] bg-slate-50">{formatMoney(totalRow)}</td>
+          {/* Matrix Table */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+            <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+              <h3 className="text-sm font-bold text-slate-900 flex items-center space-x-1.5">
+                <span className="material-symbols-outlined text-[#5C3A21]">grid_on</span>
+                <span>Matriz Semanal — {MONTH_NAMES[selectedMonth - 1]} {selectedYear}</span>
+              </h3>
+              <span className="text-xs text-slate-500 font-mono-num">Cifras en {currency}</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse font-mono-num text-xs">
+                <thead>
+                  <tr className="bg-slate-100/90 text-[11px] font-bold text-slate-700 uppercase border-b border-slate-300">
+                    <th className="py-3 px-3 w-28">Código</th>
+                    <th className="py-3 px-3 font-sans">Descripción</th>
+                    <th className={weekThClass(1)}>Sem 1</th>
+                    <th className={weekThClass(2)}>Sem 2</th>
+                    <th className={weekThClass(3)}>Sem 3 (Activa)</th>
+                    <th className={weekThClass(4)}>Sem 4</th>
+                    <th className={weekThClass(5)}>Sem 5</th>
+                    <th className="py-3 px-3 text-right w-36 font-bold bg-slate-200/60 text-slate-900">Total Acum. Mes</th>
                   </tr>
-                );
-              })}
-              {/* SUBTOTAL GRUPO 1 */}
-              <tr className="bg-slate-100 font-bold text-slate-900 text-xs border-t-2 border-slate-300">
-                <td colSpan={2} className="py-2 px-3 font-sans">SUBTOTAL COSTOS VARIABLES</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 1 ? 'bg-amber-100/60' : ''}`}>{formatMoney(varTotals.sem1)}</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 2 ? 'bg-amber-100/60' : ''}`}>{formatMoney(varTotals.sem2)}</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 3 ? 'bg-amber-100/60' : ''}`}>{formatMoney(varTotals.sem3)}</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 4 ? 'bg-amber-100/60' : ''}`}>{formatMoney(varTotals.sem4)}</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 5 ? 'bg-amber-100/60' : ''}`}>{formatMoney(varTotals.sem5)}</td>
-                <td className="py-2 px-3 text-right font-bold text-[#5C3A21] bg-slate-200/50">{formatMoney(varTotals.total)}</td>
-              </tr>
-
-              {/* GRUPO 2 HEADER */}
-              <tr className="bg-slate-50 font-sans font-bold text-slate-800 text-[11px]">
-                <td colSpan={8} className="py-2 px-3 bg-slate-100/60">
-                  GRUPO 2: COSTOS FIJOS Y DE PLANTA
-                </td>
-              </tr>
-              {fijosList.map((item) => {
-                const totalRow = item.sem1 + item.sem2 + item.sem3 + item.sem4 + item.sem5;
-                return (
-                  <tr key={item.code} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-2.5 px-3 font-semibold text-slate-600">{item.code}</td>
-                    <td className="py-2.5 px-3 font-sans font-medium text-slate-900">{item.description}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 1 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem1)}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 2 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem2)}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 3 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem3)}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 4 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem4)}</td>
-                    <td className={`py-2.5 px-3 text-right ${activeWeek === 5 ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`}>{formatMoney(item.sem5)}</td>
-                    <td className="py-2.5 px-3 text-right font-bold text-[#5C3A21] bg-slate-50">{formatMoney(totalRow)}</td>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  <tr className="bg-slate-100/60 font-sans font-bold text-slate-800 text-[11px]">
+                    <td colSpan={8} className="py-2 px-3">GRUPO 1: COSTOS VARIABLES OPERATIVOS</td>
                   </tr>
-                );
-              })}
-              {/* SUBTOTAL GRUPO 2 */}
-              <tr className="bg-slate-100 font-bold text-slate-900 text-xs border-t-2 border-slate-300">
-                <td colSpan={2} className="py-2 px-3 font-sans">SUBTOTAL COSTOS FIJOS Y PLANTA</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 1 ? 'bg-amber-100/60' : ''}`}>{formatMoney(fijosTotals.sem1)}</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 2 ? 'bg-amber-100/60' : ''}`}>{formatMoney(fijosTotals.sem2)}</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 3 ? 'bg-amber-100/60' : ''}`}>{formatMoney(fijosTotals.sem3)}</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 4 ? 'bg-amber-100/60' : ''}`}>{formatMoney(fijosTotals.sem4)}</td>
-                <td className={`py-2 px-3 text-right ${activeWeek === 5 ? 'bg-amber-100/60' : ''}`}>{formatMoney(fijosTotals.sem5)}</td>
-                <td className="py-2 px-3 text-right font-bold text-[#5C3A21] bg-slate-200/50">{formatMoney(fijosTotals.total)}</td>
-              </tr>
+                  {renderRows(variablesList)}
+                  {renderSubtotal(varTotals, 'SUBTOTAL COSTOS VARIABLES')}
 
-              {/* GRAND TOTAL */}
-              <tr className="bg-[#5C3A21] text-white font-bold text-xs">
-                <td colSpan={2} className="py-3 px-3 font-sans tracking-wide">TOTAL CONSOLIDADO MES ({selectedMonth})</td>
-                <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem1)}</td>
-                <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem2)}</td>
-                <td className="py-3 px-3 text-right font-extrabold underline">{formatMoney(grandTotal.sem3)}</td>
-                <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem4)}</td>
-                <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem5)}</td>
-                <td className="py-3 px-3 text-right font-extrabold text-amber-300 text-sm bg-[#432A18]">{formatMoney(grandTotal.total)}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  <tr className="bg-slate-100/60 font-sans font-bold text-slate-800 text-[11px]">
+                    <td colSpan={8} className="py-2 px-3">GRUPO 2: COSTOS FIJOS Y DE PLANTA</td>
+                  </tr>
+                  {renderRows(fijosList)}
+                  {renderSubtotal(fijosTotals, 'SUBTOTAL COSTOS FIJOS Y PLANTA')}
+
+                  <tr className="bg-[#5C3A21] text-white font-bold text-xs">
+                    <td colSpan={2} className="py-3 px-3 font-sans tracking-wide">TOTAL CONSOLIDADO MES</td>
+                    <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem1)}</td>
+                    <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem2)}</td>
+                    <td className="py-3 px-3 text-right font-extrabold underline">{formatMoney(grandTotal.sem3)}</td>
+                    <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem4)}</td>
+                    <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem5)}</td>
+                    <td className="py-3 px-3 text-right font-extrabold text-amber-300 text-sm bg-[#432A18]">{formatMoney(grandTotal.total)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 };

@@ -1,24 +1,31 @@
 import React, { useState } from 'react';
+import { signInWithEmail } from '../lib/auth';
 
 interface LoginScreenProps {
   onLoginSuccess: (role: string) => void;
-  bcvRate: number;
+  bcvRate?: number;
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
-  const [email, setEmail] = useState('admin@aprocao.com');
-  const [password, setPassword] = useState('ContrasenaSegura2026');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setErrorMsg(null);
 
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      await signInWithEmail(email, password);
       onLoginSuccess('admin');
-    }, 600);
+    } catch (err: any) {
+      setErrorMsg(err.message ?? 'Error al iniciar sesión.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -36,6 +43,14 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </div>
         </div>
 
+        {/* Error message */}
+        {errorMsg && (
+          <div className="flex items-start space-x-2 bg-red-50 border border-red-200 rounded-xl px-3 py-2.5 text-xs text-red-700 font-medium">
+            <span className="material-symbols-outlined text-[16px] mt-0.5 flex-shrink-0">error</span>
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
         {/* Clean Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -45,6 +60,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 mail
               </span>
               <input
+                id="login-email"
                 type="email"
                 required
                 value={email}
@@ -71,6 +87,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
                 lock
               </span>
               <input
+                id="login-password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
@@ -91,6 +108,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           </div>
 
           <button
+            id="login-submit"
             type="submit"
             disabled={isLoading}
             className="w-full h-11 bg-[#5C3A21] hover:bg-[#432A18] text-white rounded-xl text-xs font-bold tracking-wide flex items-center justify-center space-x-2 shadow-md shadow-[#5C3A21]/20 transition-all active:scale-[0.99] disabled:opacity-75 mt-2 cursor-pointer"
