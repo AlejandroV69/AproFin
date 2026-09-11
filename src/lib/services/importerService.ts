@@ -11,6 +11,7 @@ export interface CreateBatchInput {
   fiscal_year: number
   fiscal_month: number
   week_number?: number
+  week_of_month?: number
   total_debit: number
   total_credit: number
 }

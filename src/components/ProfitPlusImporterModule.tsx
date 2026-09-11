@@ -443,6 +443,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
           fiscal_year: fiscalYear,
           fiscal_month: fiscalMonth,
           week_number: isoWeekOfYear ?? undefined,
+          week_of_month: typeof weekOfMonth === 'number' ? weekOfMonth : undefined,
           total_debit:  totalDebit,
           total_credit: totalCredit,
         },

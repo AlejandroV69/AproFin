@@ -42,6 +42,7 @@ export interface ImportBatch {
   fiscal_year: number
   fiscal_month: number
   week_number: number | null
+  week_of_month: number | null
   total_debit: number
   total_credit: number
   is_balanced: boolean
@@ -105,6 +106,7 @@ export interface CacaoSale {
 export interface WeeklyExpense {
   id: string
   account_code: string | null
+  account_name?: string | null
   fiscal_year: number
   fiscal_month: number
   expense_category: 'COSTO_VARIABLE' | 'COSTO_FIJO' | 'ADMINISTRACION'

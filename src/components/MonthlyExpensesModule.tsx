@@ -74,32 +74,32 @@ export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ cu
   const activeWeekValue = [grandTotal.sem1, grandTotal.sem2, grandTotal.sem3, grandTotal.sem4, grandTotal.sem5][activeWeek - 1];
 
   const weekThClass = (w: number) =>
-    `py-3 px-3 text-right w-32 ${activeWeek === w ? 'bg-amber-100/80 text-amber-900 font-extrabold border-x border-amber-300' : ''}`;
+    `py-3 px-4 text-right min-w-[160px] ${activeWeek === w ? 'bg-amber-100/80 text-amber-900 font-extrabold border-x border-amber-300' : ''}`;
 
   const weekTdClass = (w: number) =>
-    `py-2.5 px-3 text-right ${activeWeek === w ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`;
+    `py-2.5 px-4 text-right min-w-[160px] ${activeWeek === w ? 'bg-amber-50/80 font-bold border-x border-amber-200 text-amber-900' : 'text-slate-700'}`;
 
   const renderRows = (items: WeeklyExpense[]) =>
     items.map((item) => (
       <tr key={item.id} className="hover:bg-slate-50 transition-colors">
-        <td className="py-2.5 px-3 font-semibold text-slate-600">{item.account_code ?? '—'}</td>
-        <td className="py-2.5 px-3 font-sans font-medium text-slate-900">{item.expense_category}</td>
+        <td className="py-2.5 px-4 font-semibold text-slate-600">{item.account_code ?? '—'}</td>
+        <td className="py-2.5 px-4 font-sans font-medium text-slate-900">{item.account_name || item.expense_category}</td>
         <td className={weekTdClass(1)}>{formatMoney(item.week_1)}</td>
         <td className={weekTdClass(2)}>{formatMoney(item.week_2)}</td>
         <td className={weekTdClass(3)}>{formatMoney(item.week_3)}</td>
         <td className={weekTdClass(4)}>{formatMoney(item.week_4)}</td>
         <td className={weekTdClass(5)}>{formatMoney(item.week_5)}</td>
-        <td className="py-2.5 px-3 text-right font-bold text-[#5C3A21] bg-slate-50">{formatMoney(item.total_month)}</td>
+        <td className="py-2.5 px-4 text-right font-bold text-[#5C3A21] bg-slate-50">{formatMoney(item.total_month)}</td>
       </tr>
     ));
 
   const renderSubtotal = (totals: ReturnType<typeof calcGroupTotals>, label: string) => (
     <tr className="bg-slate-100 font-bold text-slate-900 text-xs border-t-2 border-slate-300">
-      <td colSpan={2} className="py-2 px-3 font-sans">{label}</td>
+      <td colSpan={2} className="py-2.5 px-4 font-sans">{label}</td>
       {[totals.sem1, totals.sem2, totals.sem3, totals.sem4, totals.sem5].map((v, i) => (
-        <td key={i} className={`py-2 px-3 text-right ${activeWeek === i + 1 ? 'bg-amber-100/60' : ''}`}>{formatMoney(v)}</td>
+        <td key={i} className={`py-2.5 px-4 text-right ${activeWeek === i + 1 ? 'bg-amber-100/60' : ''}`}>{formatMoney(v)}</td>
       ))}
-      <td className="py-2 px-3 text-right font-bold text-[#5C3A21] bg-slate-200/50">{formatMoney(totals.total)}</td>
+      <td className="py-2.5 px-4 text-right font-bold text-[#5C3A21] bg-slate-200/50">{formatMoney(totals.total)}</td>
     </tr>
   );
 
@@ -211,40 +211,40 @@ export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ cu
               <span className="text-xs text-slate-500 font-mono-num">Cifras en {currency}</span>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse font-mono-num text-xs">
+              <table className="w-full text-left border-collapse font-mono-num text-xs whitespace-nowrap">
                 <thead>
                   <tr className="bg-slate-100/90 text-[11px] font-bold text-slate-700 uppercase border-b border-slate-300">
-                    <th className="py-3 px-3 w-28">Código</th>
-                    <th className="py-3 px-3 font-sans">Descripción</th>
+                    <th className="py-3 px-4 min-w-[140px]">Código</th>
+                    <th className="py-3 px-4 min-w-[280px] font-sans">Descripción</th>
                     <th className={weekThClass(1)}>Sem 1</th>
                     <th className={weekThClass(2)}>Sem 2</th>
                     <th className={weekThClass(3)}>Sem 3 (Activa)</th>
                     <th className={weekThClass(4)}>Sem 4</th>
                     <th className={weekThClass(5)}>Sem 5</th>
-                    <th className="py-3 px-3 text-right w-36 font-bold bg-slate-200/60 text-slate-900">Total Acum. Mes</th>
+                    <th className="py-3 px-4 text-right min-w-[200px] font-bold bg-slate-200/60 text-slate-900">Total Acum. Mes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
                   <tr className="bg-slate-100/60 font-sans font-bold text-slate-800 text-[11px]">
-                    <td colSpan={8} className="py-2 px-3">GRUPO 1: COSTOS VARIABLES OPERATIVOS</td>
+                    <td colSpan={8} className="py-2.5 px-4">GRUPO 1: COSTOS VARIABLES OPERATIVOS</td>
                   </tr>
                   {renderRows(variablesList)}
                   {renderSubtotal(varTotals, 'SUBTOTAL COSTOS VARIABLES')}
 
                   <tr className="bg-slate-100/60 font-sans font-bold text-slate-800 text-[11px]">
-                    <td colSpan={8} className="py-2 px-3">GRUPO 2: COSTOS FIJOS Y DE PLANTA</td>
+                    <td colSpan={8} className="py-2.5 px-4">GRUPO 2: COSTOS FIJOS Y DE PLANTA</td>
                   </tr>
                   {renderRows(fijosList)}
                   {renderSubtotal(fijosTotals, 'SUBTOTAL COSTOS FIJOS Y PLANTA')}
 
                   <tr className="bg-[#5C3A21] text-white font-bold text-xs">
-                    <td colSpan={2} className="py-3 px-3 font-sans tracking-wide">TOTAL CONSOLIDADO MES</td>
-                    <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem1)}</td>
-                    <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem2)}</td>
-                    <td className="py-3 px-3 text-right font-extrabold underline">{formatMoney(grandTotal.sem3)}</td>
-                    <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem4)}</td>
-                    <td className="py-3 px-3 text-right">{formatMoney(grandTotal.sem5)}</td>
-                    <td className="py-3 px-3 text-right font-extrabold text-amber-300 text-sm bg-[#432A18]">{formatMoney(grandTotal.total)}</td>
+                    <td colSpan={2} className="py-3.5 px-4 font-sans tracking-wide">TOTAL CONSOLIDADO MES</td>
+                    {[grandTotal.sem1, grandTotal.sem2, grandTotal.sem3, grandTotal.sem4, grandTotal.sem5].map((v, i) => (
+                      <td key={i} className={`py-3.5 px-4 text-right ${activeWeek === i + 1 ? 'bg-[#4A2E1A] font-extrabold text-amber-200' : ''}`}>
+                        {formatMoney(v)}
+                      </td>
+                    ))}
+                    <td className="py-3.5 px-4 text-right font-extrabold text-amber-300 text-sm bg-[#382214]">{formatMoney(grandTotal.total)}</td>
                   </tr>
                 </tbody>
               </table>
