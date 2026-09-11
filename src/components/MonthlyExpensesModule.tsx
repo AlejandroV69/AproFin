@@ -110,7 +110,7 @@ export const MonthlyExpensesModule: React.FC<MonthlyExpensesModuleProps> = ({ cu
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
             <span className="material-symbols-outlined text-[#5C3A21]">calendar_view_week</span>
-            <span>Módulo 3: Gastado Dentro del Mes</span>
+            <span>Gastos Mensuales y Matriz Semanal</span>
           </h2>
           <p className="text-xs text-slate-500">Matriz Semanal de Costos Devengados y Ejecución Presupuestaria Operativa.</p>
         </div>

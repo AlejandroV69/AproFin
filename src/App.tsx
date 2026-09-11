@@ -80,6 +80,7 @@ export function App() {
         userRole={userRole}
         onLogout={handleLogout}
         bcvRate={bcvRate}
+        eurRate={eurRate}
       />
 
       {/* Banner de tasa BCV si hay error al cargar */}
@@ -94,7 +95,7 @@ export function App() {
       {ratesLoading && (
         <div className="bg-blue-50 border-b border-blue-100 px-4 py-1.5 text-center text-[11px] text-blue-600 font-medium flex items-center justify-center gap-1.5">
           <div className="w-3 h-3 border border-blue-500 border-t-transparent rounded-full animate-spin" />
-          Actualizando tasa BCV desde DolarAPI...
+          Actualizando tasas desde DolarAPI...
         </div>
       )}
 
@@ -113,13 +114,8 @@ export function App() {
       </main>
 
       <footer className="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-500 font-mono-num">
-        <div className="max-w-[1600px] mx-auto px-4 flex justify-center items-center gap-4">
+        <div className="max-w-[1600px] mx-auto px-4 flex justify-center items-center">
           <span>APRONFIN ERP • Agropecuaria Aprocao, C.A. • RIF: J-40812903-1</span>
-          {!ratesLoading && (
-            <span className="text-slate-400">
-              BCV: Bs. {bcvRate.toFixed(2)} | EUR: Bs. {eurRate.toFixed(2)}
-            </span>
-          )}
         </div>
       </footer>
     </div>

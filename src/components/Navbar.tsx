@@ -11,6 +11,7 @@ interface NavbarProps {
   userRole: string;
   onLogout: () => void;
   bcvRate: number;
+  eurRate: number;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -21,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   userRole,
   onLogout,
   bcvRate,
+  eurRate,
 }) => {
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
@@ -60,10 +62,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Right Controls: BCV Indicator, Currency Switcher & Profile */}
           <div className="flex items-center space-x-3">
-            {/* Global BCV Rate Badge */}
-            <div className="hidden sm:flex items-center space-x-1.5 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-mono-num">
-              <span className="font-bold text-[10px] text-slate-500 uppercase">BCV:</span>
-              <span className="font-bold text-slate-800">Bs. {bcvRate.toFixed(2)}</span>
+            {/* Global BCV & EUR Rate Badge */}
+            <div className="hidden sm:flex items-center space-x-2 bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg border border-slate-200 text-xs font-mono-num">
+              <div className="flex items-center space-x-1">
+                <span className="font-bold text-[10px] text-slate-500 uppercase">BCV:</span>
+                <span className="font-bold text-slate-800">Bs. {bcvRate.toFixed(2)}</span>
+              </div>
+              <span className="text-slate-300">|</span>
+              <div className="flex items-center space-x-1">
+                <span className="font-bold text-[10px] text-slate-500 uppercase">EUR:</span>
+                <span className="font-bold text-slate-800">Bs. {eurRate.toFixed(2)}</span>
+              </div>
             </div>
 
             {/* Currency Selector */}
@@ -100,10 +109,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         {/* Mobile Navigation Tabs */}
         <div className="lg:hidden flex overflow-x-auto pb-2 space-x-1 border-t border-slate-100 pt-2">
           {([
-            { key: 'importer', label: '1. Gastos Pagados' },
-            { key: 'trade', label: '2. Compras/Ventas' },
-            { key: 'monthly', label: '3. Gastado Mes' },
-            { key: 'ytd', label: '4. Matriz YTD' },
+            { key: 'importer', label: 'Gastos Pagados' },
+            { key: 'trade', label: 'Compras/Ventas' },
+            { key: 'monthly', label: 'Gastado Mes' },
+            { key: 'ytd', label: 'Matriz YTD' },
           ] as { key: ModuleView; label: string }[]).map(({ key, label }) => (
             <button
               key={key}

@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import type { CurrencyMode } from './Navbar';
-import { createImportBatch, saveBalanceEntries, getRecentBatches } from '../lib/services/importerService';
+import { createImportBatch, saveBalanceEntries, getRecentBatches, getBatchEntries } from '../lib/services/importerService';
 import { getCurrentUser } from '../lib/auth';
-import type { ImportBatch } from '../lib/types';
+import type { ImportBatch, ProfitBalance } from '../lib/types';
 
 // ─────────────────────────────────────────────────────────
 // Tipos internos de previsualización
@@ -282,6 +282,31 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
   const [recentBatches, setRecentBatches] = useState<ImportBatch[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
+  // Estado para desplegar cuentas de un lote importado
+  const [expandedBatchId, setExpandedBatchId] = useState<string | null>(null);
+  const [expandedEntries, setExpandedEntries] = useState<ProfitBalance[]>([]);
+  const [isLoadingBatch, setIsLoadingBatch]   = useState<boolean>(false);
+
+  const handleToggleExpandBatch = async (batchId: string) => {
+    if (expandedBatchId === batchId) {
+      setExpandedBatchId(null);
+      setExpandedEntries([]);
+      return;
+    }
+
+    setExpandedBatchId(batchId);
+    setIsLoadingBatch(true);
+    try {
+      const batchRows = await getBatchEntries(batchId);
+      setExpandedEntries(batchRows);
+    } catch (err) {
+      console.error('Error al cargar cuentas del lote:', err);
+      setExpandedEntries([]);
+    } finally {
+      setIsLoadingBatch(false);
+    }
+  };
+
   // Período del lote — selecciones manuales mediante desplegables
   const now = new Date();
   const [fiscalYear, setFiscalYear]   = useState<number>(now.getFullYear());
@@ -473,16 +498,12 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
             <span className="material-symbols-outlined text-[#5C3A21]">upload_file</span>
-            <span>Módulo 1: Importador de Balances Profit Plus</span>
+            <span>Gastos Pagados y Balances Contables</span>
           </h2>
           <p className="text-xs text-slate-500">
             Importa el Balance de Comprobación directamente desde Excel y sincroniza con la base de datos.
           </p>
         </div>
-        <span className="bg-emerald-50 text-emerald-700 text-xs font-bold px-3 py-1 rounded-full border border-emerald-200 flex items-center space-x-1">
-          <span className="material-symbols-outlined text-[16px]">table_view</span>
-          <span>Solo Excel — .xlsx / .xls / .csv</span>
-        </span>
       </div>
 
       {/* ── Período del lote ──────────────────────────── */}
@@ -800,25 +821,118 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
             </h3>
           </div>
           <div className="divide-y divide-slate-100">
-            {recentBatches.map(batch => (
-              <div key={batch.id} className="px-4 py-3 flex items-center justify-between text-xs font-mono-num">
-                <div className="flex items-center gap-4">
-                  <span className="font-bold text-slate-900">{batch.file_name}</span>
-                  <span className="text-slate-500">{MONTH_NAMES[(batch.fiscal_month ?? 1) - 1]} {batch.fiscal_year}{batch.week_number ? ` · Sem ${batch.week_number}` : ''}</span>
+            {recentBatches.map(batch => {
+              const isExpanded = expandedBatchId === batch.id;
+              return (
+                <div key={batch.id} className="transition-colors">
+                  <div className="px-4 py-3 flex items-center justify-between text-xs font-mono-num hover:bg-slate-50/70">
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-[18px] text-[#8B5A2B]">description</span>
+                      <span className="font-bold text-slate-900">{batch.file_name}</span>
+                      <span className="text-slate-500 font-sans">
+                        {MONTH_NAMES[(batch.fiscal_month ?? 1) - 1]} {batch.fiscal_year}
+                        {batch.week_number ? ` · Sem ${batch.week_number}` : ''}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span className="text-slate-500">
+                        Bs. {Number(batch.total_debit).toLocaleString('es-VE', { maximumFractionDigits: 2 })}
+                      </span>
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold font-sans border ${
+                        batch.is_balanced
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-amber-50 text-amber-700 border-amber-200'
+                      }`}>
+                        {batch.is_balanced ? 'Cuadrado' : 'Desbalanceado'}
+                      </span>
+                      <span className="text-slate-400">{new Date(batch.created_at).toLocaleDateString('es-VE')}</span>
+
+                      <button
+                        onClick={() => handleToggleExpandBatch(batch.id)}
+                        className={`px-3 py-1 rounded-lg border text-[11px] font-sans font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs ${
+                          isExpanded
+                            ? 'bg-[#8B5A2B] text-white border-[#8B5A2B]'
+                            : 'bg-white text-slate-700 border-slate-300 hover:border-[#8B5A2B] hover:text-[#8B5A2B]'
+                        }`}
+                      >
+                        <span className="material-symbols-outlined text-[15px]">
+                          {isExpanded ? 'unfold_less' : 'unfold_more'}
+                        </span>
+                        <span>{isExpanded ? 'Ocultar Cuentas' : 'Desplegar Cuentas'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Vista desplegada con el desglose de cuentas del lote */}
+                  {isExpanded && (
+                    <div className="bg-slate-50/90 p-4 border-t border-b border-slate-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-[18px] text-[#8B5A2B]">table_view</span>
+                          <h4 className="text-xs font-bold text-slate-800 font-sans">
+                            Cuentas Contables Registradas ({batch.file_name})
+                          </h4>
+                        </div>
+                        <span className="text-[11px] text-slate-500 font-mono-num font-semibold">
+                          {isLoadingBatch ? 'Cargando...' : `${expandedEntries.length} cuentas en base de datos`}
+                        </span>
+                      </div>
+
+                      {isLoadingBatch ? (
+                        <div className="text-center py-6">
+                          <div className="w-5 h-5 border-2 border-[#8B5A2B] border-t-transparent rounded-full animate-spin mx-auto" />
+                          <p className="text-xs text-slate-500 mt-2 font-sans">Cargando desglose de cuentas del lote...</p>
+                        </div>
+                      ) : expandedEntries.length === 0 ? (
+                        <p className="text-center py-4 text-xs text-slate-400 font-sans">
+                          No se encontraron detalles de cuentas registradas para este lote.
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto bg-white rounded-xl border border-slate-200 shadow-2xs">
+                          <table className="w-full text-left border-collapse text-xs font-mono-num">
+                            <thead>
+                              <tr className="bg-slate-100/80 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200">
+                                <th className="py-2 px-3">Código Cuenta</th>
+                                <th className="py-2 px-3">Nombre de Cuenta Contable</th>
+                                <th className="py-2 px-3 text-right">Saldo Inicial</th>
+                                <th className="py-2 px-3 text-right">Débitos VES</th>
+                                <th className="py-2 px-3 text-right">Créditos VES</th>
+                                <th className="py-2 px-3 text-right">Saldo Final</th>
+                                <th className="py-2 px-3 text-right">Neto USD (BCV)</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {expandedEntries.map((e) => (
+                                <tr key={e.id} className="hover:bg-slate-50/80 transition-colors">
+                                  <td className="py-2 px-3 font-bold text-slate-900">{e.account_code ?? '-'}</td>
+                                  <td className="py-2 px-3 text-slate-800 font-sans font-medium">{e.account_name_raw}</td>
+                                  <td className="py-2 px-3 text-right text-slate-500">
+                                    Bs. {Number(e.initial_balance ?? 0).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-bold text-slate-900">
+                                    Bs. {Number(e.debit).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2 px-3 text-right text-slate-600">
+                                    Bs. {Number(e.credit).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-bold text-[#8B5A2B]">
+                                    Bs. {Number(e.final_balance).toLocaleString('es-VE', { minimumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="py-2 px-3 text-right font-bold text-slate-700">
+                                    {formatMoney(Number(e.final_balance) / bcvRate)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-500">Bs. {Number(batch.total_debit).toLocaleString('es-VE', { maximumFractionDigits: 0 })}</span>
-                  <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold font-sans border ${
-                    batch.is_balanced
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-amber-50 text-amber-700 border-amber-200'
-                  }`}>
-                    {batch.is_balanced ? 'Cuadrado' : 'Desbalanceado'}
-                  </span>
-                  <span className="text-slate-400">{new Date(batch.created_at).toLocaleDateString('es-VE')}</span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

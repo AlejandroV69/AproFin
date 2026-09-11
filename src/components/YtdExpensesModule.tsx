@@ -98,7 +98,10 @@ export const YtdExpensesModule: React.FC<YtdExpensesModuleProps> = ({ currency, 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">Estructura de Gastos YTD</h2>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
+            <span className="material-symbols-outlined text-[#5C3A21]">table_chart</span>
+            <span>Estructura de Gastos YTD</span>
+          </h2>
           <p className="text-xs text-slate-500">Matriz Financiera Consolidada — {selectedYear}</p>
         </div>
 

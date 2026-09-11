@@ -224,7 +224,7 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
         if (!parsed || parsed.length === 0) {
           setImportError(
             'No se encontraron registros válidos. Verifica que el archivo sea el reporte ' +
-            `${tradeType}_Por_Articulo exportado desde Profit Plus.`
+            `${tradeType}_Por_Articulo exportado desde el sistema.`
           );
           setImportStep('error');
           return;
@@ -384,7 +384,7 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
         <div>
           <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center space-x-2">
             <span className="material-symbols-outlined text-[#5C3A21]">scale</span>
-            <span>Módulo 2: Compras y Ventas de Cacao</span>
+            <span>Compras y Ventas de Cacao</span>
           </h2>
           <p className="text-xs text-slate-500">
             Ingesta masiva desde Reportes de Sistema (Artículos{' '}
@@ -461,13 +461,13 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
 
         <div className="bg-amber-50/40 rounded-xl p-4 border border-amber-200 shadow-xs">
           <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider block">
-            Fee Efectivo Preliminar
+            Margen Efectivo Preliminar
           </span>
           <div className="text-xl font-bold font-mono-num text-amber-900 mt-1">
             {formatMoney(feeUsd)}
           </div>
           <span className="text-[11px] text-amber-700 font-medium mt-1 block">
-            Margen Spread: +${marginPerKgUsd.toFixed(2)} / KG
+            Diferencial por KG: +${marginPerKgUsd.toFixed(2)} / KG
           </span>
         </div>
       </div>
@@ -625,25 +625,24 @@ export const CacaoTradeModule: React.FC<CacaoTradeModuleProps> = ({ currency, bc
             onChange={handleFileInput}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
           />
-          <div className="max-w-sm mx-auto space-y-3 pointer-events-none">
-            <div className="w-12 h-12 rounded-2xl bg-[#8B5A2B]/10 text-[#8B5A2B] mx-auto flex items-center justify-center">
-              <span className="material-symbols-outlined text-[28px]">cloud_upload</span>
+          <div className="space-y-3 pointer-events-none">
+            <div className="w-14 h-14 rounded-2xl bg-[#8B5A2B]/10 text-[#8B5A2B] mx-auto flex items-center justify-center">
+              <span className="material-symbols-outlined text-[32px]">cloud_upload</span>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-800">
-                Ingesta Masiva de Archivos ({tradeType} por Artículo)
-              </h3>
+              <div className="text-sm font-bold text-slate-800">
+                Arrastra tu reporte de {tradeType} de Cacao aquí
+              </div>
               <p className="text-xs text-slate-500 mt-1">
-                Arrastra el reporte{' '}
-                <code className="bg-slate-100 px-1 py-0.5 rounded text-slate-700 font-mono-num">
-                  {tradeType}_Por_Articulo.xlsx
-                </code>
+                Formatos soportados: <code className="bg-slate-100 px-1 py-0.5 rounded font-mono-num text-slate-700">.xlsx</code>{' '}
+                <code className="bg-slate-100 px-1 py-0.5 rounded font-mono-num text-slate-700">.xls</code>{' '}
+                <code className="bg-slate-100 px-1 py-0.5 rounded font-mono-num text-slate-700">.csv</code>
               </p>
             </div>
-            <span className="inline-flex items-center space-x-1.5 bg-[#5C3A21] text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-xs">
+            <div className="inline-flex items-center gap-1.5 bg-[#5C3A21] text-white text-xs font-bold px-4 py-2 rounded-lg shadow-xs pointer-events-auto cursor-pointer">
               <span className="material-symbols-outlined text-[16px]">file_open</span>
-              <span>Seleccionar Reporte Excel / CSV</span>
-            </span>
+              Seleccionar Archivo Excel
+            </div>
           </div>
 
           {importStep === 'error' && importError && (
