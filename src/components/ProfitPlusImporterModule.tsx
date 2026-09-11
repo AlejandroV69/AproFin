@@ -19,7 +19,212 @@ interface AccountEntry {
   status: 'Válido' | 'Revisar';
 }
 
-// Columnas que puede usar Profit Plus (variantes de nombre)
+// ─────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────
+
+/** Normaliza texto quitando tildes, espacios extra y convirtiendo a minúsculas */
+function normalize(s: string): string {
+  return s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function toNum(v: any): number {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return v;
+  // Manejar formato venezolano con coma decimal: "1.234,56" -> 1234.56
+  const s = String(v).replace(/\./g, '').replace(',', '.');
+  return parseFloat(s) || 0;
+}
+
+/** Detecta si una fila es de totales/agrupación (debe ser excluida) */
+function isTotalRow(cellText: string): boolean {
+  const n = normalize(cellText);
+  return (
+    n.startsWith('total') ||
+    n.startsWith('subtotal') ||
+    n === '' ||
+    n === 'undefined'
+  );
+}
+
+/** Determina si un string parece un código contable (ej: "11102.003", "1.1.1.01") */
+function looksLikeAccountCode(s: string): boolean {
+  return /^\d[\d.]+$/.test(s.trim());
+}
+
+// ─────────────────────────────────────────────────────────
+// Parser 1: Estado de Situación Financiera (formato Profit Plus real)
+// ─────────────────────────────────────────────────────────
+function parseFinancialStatement(
+  worksheet: any,
+  XLSX: any,
+  bcvRate: number
+): AccountEntry[] | null {
+  // raw: true para obtener números reales de Excel (no strings formateados)
+  const rawAoA: any[][] = XLSX.utils.sheet_to_json(worksheet, {
+    header: 1,
+    defval: '',
+    raw: true,
+  });
+
+  if (!rawAoA || rawAoA.length === 0) return null;
+
+  // ── DEBUG: imprimir primeras 10 filas en consola para diagnóstico ──
+  console.group('[AproFin] Profit Plus parser — primeras 10 filas:');
+  rawAoA.slice(0, 10).forEach((row, i) => {
+    console.log(`Fila ${i}:`, row);
+  });
+  console.groupEnd();
+
+  // ── 1. Encontrar la fila de encabezados ─────────────────
+  let headerRowIdx = -1;
+  let colCuenta    = -1;  // Columna con código (bajo "Cuenta Contable")
+  let colNombre    = -1;  // Columna con nombre (colCuenta+1 por celda combinada)
+  let colSaldo     = -1;  // Columna "Saldo Inicial"
+  let colFinal     = -1;  // Columna "Saldo a la fecha" (puede estar en fila anterior)
+
+  for (let i = 0; i < Math.min(rawAoA.length, 25); i++) {
+    const row = rawAoA[i];
+    if (!row || row.length === 0) continue;
+
+    const rowNorm = row.map((c: any) => normalize(String(c ?? '')));
+
+    // Buscar fila que contenga "Cuenta Contable"
+    const cuentaIdx = rowNorm.findIndex(
+      (c: string) => c.includes('cuenta contable') || c === 'cuenta'
+    );
+    if (cuentaIdx === -1) continue;
+
+    // Encontrada — esta es la fila de encabezados
+    headerRowIdx = i;
+    colCuenta    = cuentaIdx;
+
+    // "Saldo Inicial" o cualquier "saldo..." que NO sea "saldo a la fecha"
+    colSaldo = rowNorm.findIndex(
+      (c: string) => c.startsWith('saldo') && !c.includes('a la fecha')
+    );
+
+    // "Saldo a la fecha" — buscar primero en esta fila, luego en filas anteriores
+    colFinal = rowNorm.findIndex((c: string) => c.startsWith('saldo a la fecha'));
+    if (colFinal === -1) {
+      for (let j = Math.max(0, i - 5); j < i; j++) {
+        const prevRow = rawAoA[j];
+        if (!prevRow) continue;
+        const prevNorm = prevRow.map((c: any) => normalize(String(c ?? '')));
+        const fi = prevNorm.findIndex((c: string) => c.startsWith('saldo a la fecha'));
+        if (fi !== -1) { colFinal = fi; break; }
+      }
+    }
+
+    // Columna de nombre: col siguiente si está vacía en el header (celda combinada)
+    const nextIdx = cuentaIdx + 1;
+    if (nextIdx < rowNorm.length) {
+      const nextNorm = rowNorm[nextIdx];
+      if (nextNorm === '' || nextNorm === 'nombre' || nextNorm === 'descripcion') {
+        colNombre = nextIdx;
+      }
+    }
+
+    console.log('[AproFin] Header encontrado en fila', i, { colCuenta, colNombre, colSaldo, colFinal, headerRow: row });
+    break;
+  }
+
+  if (headerRowIdx === -1) {
+    console.warn('[AproFin] No se encontró fila de encabezados en el Excel.');
+    return null;
+  }
+
+  // ── 2. Auto-detectar columna de código en filas de datos ────────────────
+  // (el merged header "Cuenta Contable" puede estar en col 0 pero los datos
+  // reales podrían estar en col 0, 1, 2... dependiendo de la versión de Profit Plus)
+  let detectedCodeCol = colCuenta; // default: col 0
+  let detectedNameCol = colNombre; // default: col 1
+
+  const saldoCeiling = colSaldo >= 0 ? colSaldo : 7; // límite máximo de búsqueda
+
+  for (let i = headerRowIdx + 1; i < Math.min(rawAoA.length, headerRowIdx + 60); i++) {
+    const row = rawAoA[i];
+    if (!row) continue;
+    // Buscar en las columnas 0 hasta saldoCeiling-1 cuál tiene un código contable
+    for (let c = 0; c < saldoCeiling; c++) {
+      const val = String(row[c] ?? '').trim();
+      if (looksLikeAccountCode(val) && val.includes('.')) {
+        // Encontrado un código válido con punto (ej: "11102.003")
+        detectedCodeCol = c;
+        // La columna de nombre: siguiente col no vacía
+        for (let n = c + 1; n < saldoCeiling; n++) {
+          const nameVal = String(row[n] ?? '').trim();
+          if (nameVal !== '' && !looksLikeAccountCode(nameVal)) {
+            detectedNameCol = n;
+            break;
+          }
+        }
+        break;
+      }
+    }
+    if (detectedCodeCol !== colCuenta) break; // ya encontró columnas reales
+  }
+
+  // ── 3. Procesar filas de datos ────────────────────────────
+  const entries: AccountEntry[] = [];
+
+  for (let i = headerRowIdx + 1; i < rawAoA.length; i++) {
+    const row = rawAoA[i];
+    if (!row || row.every((c: any) => c === '' || c === null || c === undefined)) continue;
+
+    const cellCode = String(row[detectedCodeCol] ?? '').trim();
+    const cellName = detectedNameCol >= 0 ? String(row[detectedNameCol] ?? '').trim() : '';
+
+    let code = '';
+    let name = '';
+
+    if (looksLikeAccountCode(cellCode) && cellCode.includes('.') && cellName !== '') {
+      // Código con punto (cuenta hoja) y nombre en col adyacente
+      code = cellCode; name = cellName;
+    } else if (looksLikeAccountCode(cellCode) && cellCode.includes('.')) {
+      // Código con punto pero nombre vacío → intentar col siguiente
+      const nextName = String(row[detectedCodeCol + 1] ?? '').trim();
+      if (nextName !== '') { code = cellCode; name = nextName; }
+      else continue;
+    } else {
+      // Intentar split "11102.003  BANCO BANESCO" en una sola celda
+      const spaceMatch = cellCode.match(/^([\d.]+\.[\d]+)\s+(.+)$/);
+      if (spaceMatch) {
+        code = spaceMatch[1].trim(); name = spaceMatch[2].trim();
+      } else {
+        continue; // No tiene código válido con punto
+      }
+    }
+
+    if (!looksLikeAccountCode(code) || !code.includes('.')) continue;
+    if (isTotalRow(name)) continue;
+
+    const initialBalance = colSaldo >= 0 ? toNum(row[colSaldo]) : 0;
+    const finalBalance   = colFinal >= 0 && colFinal !== colSaldo
+      ? toNum(row[colFinal])
+      : initialBalance;
+
+    entries.push({
+      code, name, initialBalance,
+      debitVes:  0,
+      creditVes: 0,
+      finalBalance,
+      netUsd: finalBalance / (bcvRate || 1),
+      status: 'Válido',
+    });
+  }
+
+  return entries.length > 0 ? entries : null;
+}
+
+
+// ─────────────────────────────────────────────────────────
+// Parser 2: Balance de Comprobación clásico (columnas fijas)
+// ─────────────────────────────────────────────────────────
 const COL = {
   code:    ['Codigo', 'Código', 'CODIGO', 'CÓDIGO', 'Cod', 'CÓD', 'Account Code'],
   name:    ['Cuenta', 'Nombre', 'CUENTA', 'NOMBRE', 'Description', 'Account Name'],
@@ -36,19 +241,19 @@ function pick(row: Record<string, any>, keys: string[]): number | string {
   return '';
 }
 
-function parseRows(rawData: Record<string, any>[], bcvRate: number): AccountEntry[] {
+function parseTrialBalance(rawData: Record<string, any>[], bcvRate: number): AccountEntry[] {
   return rawData
     .filter(row => {
       const code = String(pick(row, COL.code)).trim();
-      return code.length > 0 && code !== 'undefined';
+      return code.length > 0 && code !== 'undefined' && looksLikeAccountCode(code);
     })
     .map(row => {
       const code    = String(pick(row, COL.code)).trim();
       const name    = String(pick(row, COL.name) || '').trim();
-      const initial = Number(pick(row, COL.initial)) || 0;
-      const debit   = Number(pick(row, COL.debit))   || 0;
-      const credit  = Number(pick(row, COL.credit))  || 0;
-      const final   = Number(pick(row, COL.final))   || (initial + debit - credit);
+      const initial = toNum(pick(row, COL.initial));
+      const debit   = toNum(pick(row, COL.debit));
+      const credit  = toNum(pick(row, COL.credit));
+      const final   = toNum(pick(row, COL.final)) || (initial + debit - credit);
       const netUsd  = (debit - credit) / bcvRate;
       const status: AccountEntry['status'] =
         debit < 0 || credit < 0 ? 'Revisar' : 'Válido';
@@ -77,11 +282,54 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
   const [recentBatches, setRecentBatches] = useState<ImportBatch[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  // Período del lote
+  // Período del lote — selecciones manuales mediante desplegables
   const now = new Date();
   const [fiscalYear, setFiscalYear]   = useState<number>(now.getFullYear());
   const [fiscalMonth, setFiscalMonth] = useState<number>(now.getMonth() + 1);
-  const [weekNumber, setWeekNumber]   = useState<number | ''>('');
+  const [weekOfMonth, setWeekOfMonth] = useState<number | ''>(1); // 1-5 o ''
+
+  /** Calcula la semana ISO del año (1-52) */
+  const getISOWeek = (d: Date): number => {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    return Math.ceil((((date.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
+  /** Mapea (Año, Mes, Semana del Mes 1-5) a Semana ISO del Año (1-52) */
+  const weekOfMonthToISOWeek = (year: number, month: number, wom: number): number => {
+    const firstDayOfWeek = (wom - 1) * 7 + 1;
+    return getISOWeek(new Date(year, month - 1, firstDayOfWeek));
+  };
+
+  // Semana del año (1-52) — estado directo seleccionable por el usuario
+  const [isoWeekOfYear, setIsoWeekOfYear] = useState<number | ''>(
+    weekOfMonthToISOWeek(now.getFullYear(), now.getMonth() + 1, 1)
+  );
+
+  // Al cambiar Año, Mes o Semana del mes, recalcular la Semana del año si no fue ajustada manualmente
+  const handleWeekOfMonthChange = (wom: number | '') => {
+    setWeekOfMonth(wom);
+    if (wom !== '') {
+      setIsoWeekOfYear(weekOfMonthToISOWeek(fiscalYear, fiscalMonth, wom));
+    } else {
+      setIsoWeekOfYear('');
+    }
+  };
+
+  const handleMonthChange = (month: number) => {
+    setFiscalMonth(month);
+    if (weekOfMonth !== '') {
+      setIsoWeekOfYear(weekOfMonthToISOWeek(fiscalYear, month, weekOfMonth));
+    }
+  };
+
+  const handleYearChange = (year: number) => {
+    setFiscalYear(year);
+    if (weekOfMonth !== '') {
+      setIsoWeekOfYear(weekOfMonthToISOWeek(year, fiscalMonth, weekOfMonth));
+    }
+  };
 
   const MONTH_NAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -106,16 +354,23 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
         const bstr = evt.target?.result;
         const wb   = XLSX.read(bstr, { type: 'binary' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
-        const raw  = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: '' });
 
-        if (!raw || raw.length === 0) {
-          setParseError('La hoja de Excel está vacía o no tiene el formato correcto.');
-          return;
+        // ── Intento 1: Estado de Situación Financiera (formato real Profit Plus) ──
+        let parsed = parseFinancialStatement(ws, XLSX, bcvRate);
+
+        // ── Intento 2: Balance de Comprobación clásico (columnas fijas) ──
+        if (!parsed || parsed.length === 0) {
+          const raw = XLSX.utils.sheet_to_json<Record<string, any>>(ws, { defval: '' });
+          if (raw && raw.length > 0) {
+            parsed = parseTrialBalance(raw, bcvRate);
+          }
         }
 
-        const parsed = parseRows(raw, bcvRate);
-        if (parsed.length === 0) {
-          setParseError('No se encontraron cuentas válidas. Verifica que el Excel tenga columnas: Código, Nombre, Débito, Crédito.');
+        if (!parsed || parsed.length === 0) {
+          setParseError(
+            'No se encontraron cuentas contables válidas. ' +
+            'El archivo debe ser un Estado de Situación Financiera o Balance de Comprobación exportado desde Profit Plus.'
+          );
           return;
         }
 
@@ -127,6 +382,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
     };
     reader.readAsBinaryString(file);
   }, [bcvRate]);
+
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -161,7 +417,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
           file_name:   fileName,
           fiscal_year: fiscalYear,
           fiscal_month: fiscalMonth,
-          week_number: weekNumber === '' ? undefined : weekNumber,
+          week_number: isoWeekOfYear ?? undefined,
           total_debit:  totalDebit,
           total_credit: totalCredit,
         },
@@ -229,32 +485,34 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
         </span>
       </div>
 
-      {/* ── Período selector ─────────────────────────── */}
+      {/* ── Período del lote ──────────────────────────── */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-xs">
         <p className="text-xs font-bold text-slate-700 mb-3 flex items-center gap-1.5">
           <span className="material-symbols-outlined text-[16px] text-[#5C3A21]">event</span>
-          Período del Lote de Importación
+          Período del Balance
         </p>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Desplegable Año */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-slate-500 uppercase">Año Fiscal</label>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase">Año</label>
             <select
               value={fiscalYear}
-              onChange={e => setFiscalYear(Number(e.target.value))}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
+              onChange={e => handleYearChange(Number(e.target.value))}
+              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
             >
-              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
-                <option key={y} value={y}>{y}</option>
+              {[2024, 2025, 2026, 2027].map(yr => (
+                <option key={yr} value={yr}>{yr}</option>
               ))}
             </select>
           </div>
 
+          {/* Desplegable Mes */}
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-semibold text-slate-500 uppercase">Mes</label>
             <select
               value={fiscalMonth}
-              onChange={e => setFiscalMonth(Number(e.target.value))}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
+              onChange={e => handleMonthChange(Number(e.target.value))}
+              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
             >
               {MONTH_NAMES.map((name, idx) => (
                 <option key={idx + 1} value={idx + 1}>{name}</option>
@@ -262,19 +520,38 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
             </select>
           </div>
 
+          {/* Desplegable Semana del Mes (1-5) */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-semibold text-slate-500 uppercase">Semana (opcional)</label>
+            <label className="text-[10px] font-semibold text-slate-500 uppercase">Semana del Mes</label>
             <select
-              value={weekNumber}
-              onChange={e => setWeekNumber(e.target.value === '' ? '' : Number(e.target.value))}
-              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
+              value={weekOfMonth}
+              onChange={e => handleWeekOfMonthChange(e.target.value === '' ? '' : Number(e.target.value))}
+              className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
             >
-              <option value="">— Mes completo —</option>
-              {[1, 2, 3, 4, 5].map(w => <option key={w} value={w}>Semana {w}</option>)}
+              <option value="">— Sin semana —</option>
+              {[1, 2, 3, 4, 5].map(w => (
+                <option key={w} value={w}>Semana {w}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Desplegable Semana del Año (1-52) */}
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-semibold text-[#5C3A21] uppercase font-bold">Semana del Año</label>
+            <select
+              value={isoWeekOfYear}
+              onChange={e => setIsoWeekOfYear(e.target.value === '' ? '' : Number(e.target.value))}
+              className="text-xs bg-[#5C3A21]/5 border border-[#5C3A21]/30 rounded-lg px-2.5 py-1.5 font-bold text-[#5C3A21] focus:outline-none focus:ring-2 focus:ring-[#5C3A21]"
+            >
+              <option value="">— Sin semana —</option>
+              {Array.from({ length: 53 }, (_, i) => i + 1).map(w => (
+                <option key={w} value={w}>Semana {w} del año</option>
+              ))}
             </select>
           </div>
         </div>
       </div>
+
 
       {/* ── Dropzone ─────────────────────────────────── */}
       {step === 'idle' || step === 'error' ? (
@@ -441,7 +718,7 @@ export const ProfitPlusImporterModule: React.FC<ProfitPlusImporterModuleProps> =
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <h3 className="text-sm font-bold text-slate-900">Previsualización — Mapeo Contable</h3>
-              <span className="text-xs text-slate-500 font-mono-num">{entries.length} cuentas · {MONTH_NAMES[fiscalMonth - 1]} {fiscalYear}{weekNumber ? ` · Sem ${weekNumber}` : ''}</span>
+              <span className="text-xs text-slate-500 font-mono-num">{entries.length} cuentas · {MONTH_NAMES[fiscalMonth - 1]} {fiscalYear}{weekOfMonth !== '' ? ` · Sem ${weekOfMonth} del mes (Sem ${isoWeekOfYear} del año)` : ''}</span>
             </div>
 
             <div className="overflow-x-auto">
