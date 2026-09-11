@@ -52,9 +52,34 @@ export interface PurchaseInput {
 }
 
 /**
+ * Asegura que los códigos de artículos (ej: CAC200, CAC201) existan en la tabla `cacao_articles`
+ * para evitar violaciones de clave foránea (FK) al guardar compras o ventas.
+ */
+export async function ensureCacaoArticles(articleCodes: string[]): Promise<void> {
+  const uniqueCodes = Array.from(new Set(articleCodes.filter(Boolean)));
+  if (uniqueCodes.length === 0) return;
+
+  const rows = uniqueCodes.map(code => ({
+    code,
+    description: code === 'CAC201' ? 'CACAO FINO DE AROMA' : 'CACAO CORRIENTE'
+  }));
+
+  const { error } = await supabase
+    .from('cacao_articles')
+    .upsert(rows, { onConflict: 'code', ignoreDuplicates: true });
+
+  if (error) {
+    console.warn('Advertencia al verificar cacao_articles:', error.message);
+  }
+}
+
+/**
  * Inserta múltiples compras de cacao (insert masivo con upsert por doc+línea).
  */
 export async function savePurchases(rows: PurchaseInput[]): Promise<void> {
+  if (rows.length === 0) return;
+  await ensureCacaoArticles(rows.map(r => r.article_code));
+
   const { error } = await supabase
     .from('cacao_purchases')
     .upsert(rows, { onConflict: 'doc_number,line_number' })
@@ -107,6 +132,9 @@ export interface SaleInput {
  * Inserta múltiples ventas de cacao (upsert por doc+línea).
  */
 export async function saveSales(rows: SaleInput[]): Promise<void> {
+  if (rows.length === 0) return;
+  await ensureCacaoArticles(rows.map(r => r.article_code));
+
   const { error } = await supabase
     .from('cacao_sales')
     .upsert(rows, { onConflict: 'doc_number,line_number' })
